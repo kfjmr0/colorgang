@@ -1,8 +1,38 @@
 body {
-  padding: 50px;
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
 }
-
 a {
   color: #00B7FF;
+}
+#header {
+  background-color: black;
+  padding-left: 20px;
+}
+  #header a {
+    font-family : 'Impact';
+    font-size: 30px;
+    text-decoration : none;
+    color: white;
+  }
+#nav {
+  border-bottom: solid 1px gray;
+}
+  #nav a {
+    margin-left: 20px;
+  }
+
+#top {
+  margin: 20px;
+}
+  #top #make-room {
+    border-top: 1px solid gray;
+    background-color: lightgreen;
+    margin-top: 10px;
+    padding: 10px;
+    
+  }
+
+
+.howTo,.material,.changeLog {
+  margin: 40px;
 }

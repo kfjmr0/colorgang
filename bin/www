@@ -88,3 +88,24 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
+
+
+
+/**
+ * socket.io treating and room list
+ */
+var io = require('socket.io')(server);//, {'sync disconnect on unload': true });
+var os = require('os');
+var roomList = [{name: 'たこ部屋', rm: 'octo君', number: 5}, {name: 'たこ部屋2', rm: 'octo君2', number: 25}];
+
+io.on('connection', (socket) => {
+  //socket.emit('server-status', { loadavg: os.loadavg() });
+  console.log('user entered.');
+  
+  socket.emit('roomList', { roomList: roomList});
+  
+  socket.on('disconnect', function(){
+    console.log('user disconnected');
+  });
+});
+
