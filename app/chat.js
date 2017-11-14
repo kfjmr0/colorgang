@@ -28,6 +28,12 @@ function setSocket(socket) {
             $('#member-list').append('<li class="list-group-item">'+ member_name +'</li>');
         })
     });
+    
+    socket.on('newComer', (data) => {
+        $('#member-list').append('<li class="list-group-item">'+ data.member_name +'</li>');
+        // TODO さんが入室しました
+        $('#chat-content').append('<div>'+ data.member_name +'さんが入室しました</div>');
+    });
 }
 
 module.exports = {
