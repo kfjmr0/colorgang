@@ -3,10 +3,11 @@
 /**
  * Module dependencies.
  */
-
+'use strict';
 var app = require('../app');
 var debug = require('debug')('colorgang:server');
 var http = require('http');
+var crypto = require('crypto');
 
 /**
  * Get port from environment and store in Express.
@@ -96,16 +97,81 @@ function onListening() {
  */
 var io = require('socket.io')(server);//, {'sync disconnect on unload': true });
 var os = require('os');
-var roomList = [{name: 'たこ部屋', rm: 'octo君', number: 5}, {name: 'たこ部屋2', rm: 'octo君2', number: 25}];
+var chat_server = require('./chat_server');
+
+//var roomList = [{name: 'たこ部屋', rm: 'octo君', number: 5}, {name: 'たこ部屋2', rm: 'octo君2', number: 25}];
+var roomMap = {};
+var playerRoomList = []; // player's socket.id vs joined room id
+var roomStateList = []; // room id vs that room's state
 
 io.on('connection', (socket) => {
   //socket.emit('server-status', { loadavg: os.loadavg() });
   console.log('user entered.');
+  socket.emit('enterTopPage', { roomMap: roomMap});
   
-  socket.emit('roomList', { roomList: roomList});
-  
-  socket.on('disconnect', function(){
-    console.log('user disconnected');
+  socket.on('makeRoom', (data) => {
+    //TODO check duplicate room name or player name or illegal characters
+    if (data && data.room_name && data.player_name) {
+      if (data.room_name.length > 15 || data.player_name.length > 10) {
+        return false;
+      }
+    } else {
+      return false;
+    }
+    //console.log(data.player_name + ' ' + data.room_name);
+    //TODO set room_id and join room
+    var room_id = crypto.randomBytes(16).toString('hex');
+    var room = {name: data.room_name, rm: data.player_name, number: 0, id: room_id}
+    roomMap[room_id] = room;
+    roomStateList[room_id] = {
+      memberList : []
+    };
+    joinRoom(socket, room, data.player_name);
+    
+    console.log(roomMap);
+    
+    //TODO broadcast add room
+    io.sockets.emit('addRoom', {
+      room: room
+    });
   });
+    
+  //TODO join room
+  socket.on('joinRoom', (data) => {
+    if (!data || !data.room_id) {
+      console.log('room data is null');
+      return false;
+    } else if (!roomMap[data.room_id]) {
+       console.log('room does not exist in roomMap for room id :' + data.room_id);
+       return false;
+    }
+    // TODO check player name
+    
+    console.log('join room:' + data.room_id)
+    let room = roomMap[data.room_id];
+    joinRoom(socket, room, data.player_name);
+  });
+  
+  
+  socket.on('disconnect', (data) => {
+    console.log('user disconnected');
+    console.log(playerRoomList);
+    //TODO postprocess disconection (decrement user number in the room and if he's rm, ...)
+    //console.log();
+  });
+  
+  chat_server.setSocket(io, socket, playerRoomList, roomStateList);
 });
 
+function joinRoom(socket, room, player_name) {
+  //TODO null check
+  socket.join(room.id);
+  playerRoomList[socket.id] = room.id;
+  room.number += 1;
+  roomStateList[room.id].memberList.push(player_name);
+  
+  chat_server.emitEnterRoom(room, player_name, socket, roomStateList);
+  //socket.emit('enterRoom', {
+  //  
+  //});
+}

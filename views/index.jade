@@ -2,9 +2,14 @@ extends layout
 
 block content
   div(id='top') 部屋を取得しています
-  div(id='match-target')
-  div(id='chat-target')
-  
+  div(class='conteiner')
+    div(class='row')
+      div(class='col-xs-12 col-md-6')
+        div(id='match-target')
+      div(class='col-xs-12 col-md-5')
+        div(id='chat-target')
+      div(class='col-xs-12 col-md-5')
+        div(id='member-target')
   
   
   script(src="/javascripts/bundle.js")
