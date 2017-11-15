@@ -32,7 +32,15 @@ a {
     
   }
 
-
+#chat-content {
+  border: 1px solid lime;
+}
+  #chat-content .chat-message {
+    border-bottom: 0.5px solid gray;
+  }
+  
+  
+  
 .howTo,.material,.changeLog {
   margin: 40px;
 }

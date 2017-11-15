@@ -101,7 +101,7 @@ var chat_server = require('./chat_server');
 
 //var roomList = [{name: 'たこ部屋', rm: 'octo君', number: 5}, {name: 'たこ部屋2', rm: 'octo君2', number: 25}];
 var roomMap = {};
-var playerRoomList = []; // player's socket.id vs joined room id
+var playerRoomList = []; // player's socket.id vs joined room id and name
 var roomStateList = []; // room id vs that room's state
 
 io.on('connection', (socket) => {
@@ -166,11 +166,11 @@ io.on('connection', (socket) => {
 function joinRoom(socket, room, player_name) {
   //TODO null check
   socket.join(room.id);
-  playerRoomList[socket.id] = room.id;
+  playerRoomList[socket.id] = {room_id: room.id, name: player_name};
   room.number += 1;
   roomStateList[room.id].memberList.push(player_name);
   
-  chat_server.emitEnterRoom(room, player_name, socket, roomStateList);
+  chat_server.emitEnterRoom(room, player_name, socket, roomStateList, io);
   //socket.emit('enterRoom', {
   //  
   //});

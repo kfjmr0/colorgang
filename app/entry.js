@@ -54,7 +54,7 @@ socket.on('enterTopPage', (data) => {
         });
         
         $top.empty();
-        chat.init($chat_target, $member_target);
+        chat.init($chat_target, $member_target, $match_target, socket);
         //TODO server-side 
     });
 
@@ -67,8 +67,8 @@ socket.on('addRoom', (data) => {
 chat.setSocket(socket);
 
 function addRoom(room) {
-    $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + room.name + '</div><div class="panel-body">' 
-      + room.number + '人　 RM:' + room.rm + '<button class="btn btn-primary join-room" data-room-id="' + room.id + '">部屋に入る</button></div></div>');
+    $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + escapeHTML(room.name) + '</div><div class="panel-body">' 
+      + room.number + '人　 RM:' + escapeHTML(room.rm) + '<button class="btn btn-primary join-room" data-room-id="' + room.id + '">部屋に入る</button></div></div>');
     
     //$roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + room.name + '</div><div class="panel-body">' 
     //  + room.number + '人　 RM:' + room.rm
@@ -94,7 +94,11 @@ function addRoom(room) {
         });
         
         $top.empty();
-        chat.init($chat_target, $member_target);
+        chat.init($chat_target, $member_target, $match_target, socket);
         
     });
 }
+
+function escapeHTML(val) {
+    return $('<span>').text(val).html();
+};
