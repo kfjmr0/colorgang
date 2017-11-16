@@ -7,7 +7,17 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         // TODO null check/ implement isValidSocketId()??
         var room_id = playerRoomList[socket.id].room_id;
         var name = playerRoomList[socket.id].name;
-        var chat_message = { name: name, content: data.content };
+        var content;
+        if (!data.content) {
+            console.log('content does not exist');
+            return false;
+        } else {
+            content = data.content.trim();
+            if (!content || content.length > 140) {
+                return false;
+            }
+        }
+        var chat_message = { name: name, content: content };
         pushChatList(chat_message);
         
         //console.log(room_id + ' ' + name);

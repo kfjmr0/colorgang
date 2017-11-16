@@ -1,10 +1,10 @@
 'use strict';
 const $ = require('jquery');
 const chat_html = '<form id="speak-form">'
-        	    +'<div class="col-xs-10">'
+        	    +''
         		+'    <input type="text" class="form-control" id="speak-content" maxlength="140">'
-        	    +'</div>'
-        	    +'<div class="col-xs-2"><button type="submit" class="btn btn-default">発言</button></div>'
+        	    +''
+        	    +'<button type="submit" class="btn btn-default">発言</button>'
                 +'</form>'
                 +'<div id="chat-content"></div>';
 
@@ -23,6 +23,10 @@ function init($target, $member_target, $match_target, socket) {
         var content = $('#speak-content').val();
         e.preventDefault();
         $('#speak-content').val('');
+        content = content.trim();
+        if (!content) {
+            return false;
+        }
         socket.emit('speak', {
             content: content
         });

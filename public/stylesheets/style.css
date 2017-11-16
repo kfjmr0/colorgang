@@ -32,8 +32,15 @@ a {
     
   }
 
+
+#speak-form {
+  margin-bottom: 20px;
+}
 #chat-content {
-  border: 1px solid lime;
+  height: 350px;
+  max-height: 350px;
+  word-wrap: break-word;
+	overflow: scroll;
 }
   #chat-content .chat-message {
     border-bottom: 0.5px solid gray;

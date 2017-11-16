@@ -99,7 +99,6 @@ var io = require('socket.io')(server);//, {'sync disconnect on unload': true });
 var os = require('os');
 var chat_server = require('./chat_server');
 
-//var roomList = [{name: 'たこ部屋', rm: 'octo君', number: 5}, {name: 'たこ部屋2', rm: 'octo君2', number: 25}];
 var roomMap = {};
 var playerRoomList = []; // player's socket.id vs joined room id and name
 var roomStateList = []; // room id vs that room's state
@@ -118,8 +117,10 @@ io.on('connection', (socket) => {
     } else {
       return false;
     }
+    
     //console.log(data.player_name + ' ' + data.room_name);
-    //TODO set room_id and join room
+    
+    //set room_id and join room
     var room_id = crypto.randomBytes(16).toString('hex');
     var room = {name: data.room_name, rm: data.player_name, number: 0, id: room_id}
     roomMap[room_id] = room;
@@ -130,7 +131,7 @@ io.on('connection', (socket) => {
     
     console.log(roomMap);
     
-    //TODO broadcast add room
+    //TODO is that right?
     io.sockets.emit('addRoom', {
       room: room
     });
@@ -161,6 +162,7 @@ io.on('connection', (socket) => {
   });
   
   chat_server.setSocket(io, socket, playerRoomList, roomStateList);
+  
 });
 
 function joinRoom(socket, room, player_name) {
@@ -171,7 +173,4 @@ function joinRoom(socket, room, player_name) {
   roomStateList[room.id].memberList.push(player_name);
   
   chat_server.emitEnterRoom(room, player_name, socket, roomStateList, io);
-  //socket.emit('enterRoom', {
-  //  
-  //});
 }
