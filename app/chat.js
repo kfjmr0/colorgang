@@ -13,9 +13,9 @@ const member_html = '<ul id="member-list" class="list-group">'
                     +'	<li class="list-group-item" style="background-color:silver;">メンバー</li>'
                     +'</ul>';
 
-function init($target, $member_target, $match_target, socket) {
-    $target.html(chat_html);
-    $member_target.html(member_html);
+function init($chat, $member, socket) {
+    $chat.html(chat_html);
+    $member.html(member_html);
     console.log('chat start');
     
     //TODO add event to speak form
@@ -31,6 +31,8 @@ function init($target, $member_target, $match_target, socket) {
             content: content
         });
     });
+    
+    setSocket(socket);
     
 }
 
@@ -65,6 +67,5 @@ function escapeHTML(val) {
 };
     
 module.exports = {
-    init: init,
-    setSocket: setSocket
+    init: init
 }

@@ -127,6 +127,7 @@ io.on('connection', (socket) => {
     roomStateList[room_id] = {
       memberList : []
     };
+    chat_server.createChatStorage(room_id);
     joinRoom(socket, room, data.player_name);
     
     console.log(roomMap);

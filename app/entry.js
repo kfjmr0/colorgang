@@ -1,21 +1,23 @@
 'use strict';
 const $ = require('jquery');
 const chat = require('./chat');
-
+const match = require('./match');
 
 const $nav = $('#nav');
 const $top = $('#top');
 const $match_target = $('#match-target');
+const $participate_target = $('#participate-target');
 const $chat_target = $('#chat-target');
 const $member_target = $('#member-target');
+
 const top_html = '<h4>部屋一覧</h4><div id="room-list"></div><div id="make-room"><h4>新しい部屋を作る</h4><form id="make-room-form">'
-              +'<div class="form-group">'
-              +'  <label for="player-name">プレーヤー名（最大10文字）</label>'
-              +'  <input type="text" class="form-control" id="player-name" maxlength="10">'
-              +'</div>'
               +'<div class="form-group">'
               +'  <label for="room-name">部屋の名前（最大15文字）</label>'
               +'  <input type="text" class="form-control" id="room-name" maxlength="15">'
+              +'</div>'
+              +'<div class="form-group">'
+              +'  <label for="player-name">プレーヤー名（最大10文字）</label>'
+              +'  <input type="text" class="form-control" id="player-name" maxlength="10">'
               +'</div>'
               +'<button type="submit" class="btn btn-primary">部屋を作る</button>'
               +'</form></div>';
@@ -29,8 +31,9 @@ socket.on('enterTopPage', (data) => {
     //$top.text(data.loadavg.toString());
     //$top.text(data.roomList.toString());
     
-    //$top.empty();
+    //clear gaming room element
     $match_target.empty();
+    $participate_target.empty();
     $chat_target.empty();
     $member_target.empty();
     
@@ -54,8 +57,9 @@ socket.on('enterTopPage', (data) => {
         });
         
         $top.empty();
-        chat.init($chat_target, $member_target, $match_target, socket);
-        //TODO server-side 
+        chat.init($chat_target, $member_target, socket);
+        match.init($match_target, $participate_target, socket);
+        match.roomMasterProcess($participate_target);
     });
 
 });
@@ -64,7 +68,6 @@ socket.on('addRoom', (data) => {
     addRoom(data.room);
 });
 
-chat.setSocket(socket);
 
 function addRoom(room) {
     $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + escapeHTML(room.name) + '</div><div class="panel-body">' 
@@ -94,8 +97,9 @@ function addRoom(room) {
         });
         
         $top.empty();
-        chat.init($chat_target, $member_target, $match_target, socket);
-        
+        chat.init($chat_target, $member_target, socket);
+        match.init($match_target, $participate_target, socket);
+        match.roomMemberProcess();
     });
 }
 

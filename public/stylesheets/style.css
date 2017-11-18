@@ -32,7 +32,19 @@ a {
     
   }
 
-
+#canvas {
+  border: solid 1px gray;
+  margin: 30px 0 30px 20px;
+}
+  
+  
+#participate-target {
+  height: 200px;
+  margin-bottom: 30px;
+}
+  #participate-target #match-start-button {
+    margin-right: 20px;
+  }
 #speak-form {
   margin-bottom: 20px;
 }
@@ -41,12 +53,11 @@ a {
   max-height: 350px;
   word-wrap: break-word;
 	overflow: scroll;
+	border: 0.5px solid navy;
 }
   #chat-content .chat-message {
     border-bottom: 0.5px solid gray;
   }
-  
-  
   
 .howTo,.material,.changeLog {
   margin: 40px;
