@@ -1,5 +1,5 @@
 'use strict';
-const MAX_STORED_CHAT = 10;
+const MAX_STORED_CHAT = 20;
 const storedChatListMap = {};
 
 function setSocket(io, socket, playerRoomList, roomStateList) {
@@ -30,12 +30,12 @@ function createChatStorage(room_id) {
     storedChatListMap[room_id] = [];
 }
 
-function emitEnterRoom(room, player_name, socket, roomStateList, io) {
+function emitEnterChat(room, player_name, socket, roomStateList, io) {
     //TODO send room member list and stored chat to new comer
     var enter_message = { name: player_name, content: '入室しました' };
     pushChatList(enter_message, room.id);
     
-    socket.emit('enterRoom', {
+    socket.emit('enterChat', {
         memberList: roomStateList[room.id].memberList,
         chatList: storedChatListMap[room.id]
     });
@@ -57,5 +57,5 @@ function pushChatList(message, room_id) {
 module.exports = {
     setSocket: setSocket,
     createChatStorage: createChatStorage,
-    emitEnterRoom: emitEnterRoom
+    emitEnterChat: emitEnterChat
 }

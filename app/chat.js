@@ -1,24 +1,28 @@
 'use strict';
 const $ = require('jquery');
+const $chat = $('#chat-target');
+const $member = $('#member-target');
+
 const chat_html = '<form id="speak-form">'
-        	    +''
         		+'    <input type="text" class="form-control" id="speak-content" maxlength="140">'
-        	    +''
-        	    +'<button type="submit" class="btn btn-default">発言</button>'
+        	    +'    <button type="submit" class="btn btn-default">発言</button>'
                 +'</form>'
                 +'<div id="chat-content"></div>';
-
 
 const member_html = '<ul id="member-list" class="list-group">'
                     +'	<li class="list-group-item" style="background-color:silver;">メンバー</li>'
                     +'</ul>';
 
-function init($chat, $member, socket) {
+function init(socket) {
     $chat.html(chat_html);
     $member.html(member_html);
     console.log('chat start');
     
+    
+    
+    
     //TODO add event to speak form
+    // event listener
     $('#speak-form').on('submit', (e) => {
         var content = $('#speak-content').val();
         e.preventDefault();
@@ -32,12 +36,11 @@ function init($chat, $member, socket) {
         });
     });
     
-    setSocket(socket);
     
 }
 
 function setSocket(socket) {
-    socket.on('enterRoom', (data) => {
+    socket.on('enterChat', (data) => {
         console.log(data.memberList);
         data.memberList.forEach((member_name) => {
             $('#member-list').append('<li class="list-group-item">'+ escapeHTML(member_name) +'</li>');
@@ -67,5 +70,6 @@ function escapeHTML(val) {
 };
     
 module.exports = {
-    init: init
+    init: init,
+    setSocket: setSocket
 }

@@ -50,16 +50,23 @@ socket.on('enterTopPage', (data) => {
         var player_name = $('#player-name').val();
         var room_name = $('#room-name').val();
         e.preventDefault();
+        player_name = player_name.trim();
+        room_name = room_name.trim();
         //console.log(player_name + ' ' + room_name);
+        if (player_name.length === 0 || room_name.length === 0 || player_name.length > 10 || room_name.length > 15) {
+            return false;
+        }
         socket.emit('makeRoom', {
             player_name: player_name,
             room_name: room_name
         });
         
         $top.empty();
-        chat.init($chat_target, $member_target, socket);
-        match.init($match_target, $participate_target, socket);
-        match.roomMasterProcess($participate_target);
+        chat.init(socket);
+        match.init(socket);
+        
+        match.roomMasterProcess();
+        //match.setEventHandler(socket);
     });
 
 });
@@ -67,6 +74,12 @@ socket.on('enterTopPage', (data) => {
 socket.on('addRoom', (data) => {
     addRoom(data.room);
 });
+
+chat.setSocket(socket);
+
+match.setSocketEvent(socket);
+
+
 
 
 function addRoom(room) {
@@ -97,9 +110,11 @@ function addRoom(room) {
         });
         
         $top.empty();
-        chat.init($chat_target, $member_target, socket);
-        match.init($match_target, $participate_target, socket);
-        match.roomMemberProcess();
+        chat.init(socket);
+        match.init(socket);
+        
+        
+        //match.setEventHandler(socket);
     });
 }
 
