@@ -184,11 +184,7 @@ function joinRoom(socket, room, player_name) {
   room.number += 1;
   roomStateList[room.id].memberList.push(player_name);
   
-  chat_server.emitEnterChat(room, player_name, socket, roomStateList, io);
-  
-  io.sockets.connected[socket.id].emit('enterMatch', {
-    // TODO null check
-    battle_mode: roomStateList[room.id].battle_mode,
-    participatingList: roomStateList[room.id].participatingNameList
-  });
+  chat_server.emitEnterChat(io, socket, room, roomStateList, player_name);
+  match_server.emitEnterMatch(io, socket, room, roomStateList);
+
 }

@@ -14077,15 +14077,17 @@ const $ = __webpack_require__(7);
 const FIRE_RANGE = 2;
 const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
+const ANIMATION_DT = 50;
 var cell_length;
 var body_unit;
 var canvas, ctx, canvas_width, canvas_height;
+var renderer;
 
 var battle_mode;
 var isRoomMaster = false;
 
 var players = [];
-var cellColors = [];
+var cellStates = [];
 var bombs = [];
 
 const $match = $('#match-target');
@@ -14114,15 +14116,12 @@ const participants_html = '<div id="participants-list"></div>';
 
 function init(socket) {
     setFieldSizeAndGetCanvas($match);
-    
 }
 
 function setEventHandler(socket) {
     // add event listner
     $(function () {
-        $(window).resize(() => {
-            setFieldSizeAndGetCanvas($match);
-        });
+        $(window).on('resize', setFieldSizeAndGetCanvas);
         
         $('#battle-mode-selector').change(() => {
             let chosen_mode = $('#battle-mode-selector').val();
@@ -14137,9 +14136,9 @@ function setEventHandler(socket) {
         if (isRoomMaster) {
             $('#match-start-button').click(() => {
                 socket.emit('askForMatchStart', {});
+                $('#match-start-button').prop("disabled", false);
             });
         }
-        
         
         
         function setJoinEvent() {
@@ -14161,10 +14160,9 @@ function setEventHandler(socket) {
             });
         }
     });
-    
-    
-    
 }
+
+
 
 function setSocketEvent(socket) {
     socket.on('enterMatch', (data) => {
@@ -14186,27 +14184,122 @@ function setSocketEvent(socket) {
     socket.on('matchReady', (data) => {
         // prepare variables for each person's color and position 
         // and bombs and cells color
+        for (let i = 0; i < H_CELL_NUM; i++) {
+            cellStates[i] = [];
+            for (let j = 0; j < V_CELL_NUM; j++) {
+                cellStates[i][j] = {
+                    color: 'gray',
+                    state: 'normal'
+                }
+            }
+        }
+        
         data.players.forEach((player) => {
             players.push({
                 name: player.name,
                 color: player.color,
                 x: player.x,
                 y: player.y,
+                isDead: false,
                 animation_count: 0,
                 direction: 'down'
             });
         });
         
         renderInitialMatchState();
+        //TODO render player's name
     });
     
     socket.on('matchStart', (data) => {
-       //TODO key and socket bind 
-       
+        bindMatchSocketEvent(socket);
+        bindMatchEvent(socket);
+        renderer = setInterval(renderField, ANIMATION_DT);
+    });
+    
+    socket.on('matchEnd', (data) => {
+        //TODO render result and unbind event
+        
     });
 }
 
-function setFieldSizeAndGetCanvas($match) {
+function bindMatchEvent(socket) {
+    $(window).on('keydown', onKeyDown);
+    
+    function onKeyDown(e) {
+        var
+            key = e.keyCode,
+            direction = '';
+        e.preventDefault();
+        switch (key) {
+            case 37:
+            case 65:
+                direction = 'left';
+                break;
+            case 38:
+            case 87:
+                direction = 'up';
+                break;
+            case 39:
+            case 68:
+                direction = 'right';
+                break;
+            case 40:
+            case 83:
+                direction = 'down';
+                break;
+            case 66:
+            case 74:
+                socket.emit('askForSetBomb', {});
+                break;
+            default:
+                return false;
+        }
+        
+        if (direction) {
+            socket.emit('askForMove', {direction: direction});
+        }
+    }
+    
+}
+
+function bindMatchSocketEvent(socket) {
+    socket.on('moveCharacter', (data) => {
+        var player = players[data.player_index];
+        player.x = data.x;
+        player.y = data.y;
+        player.direction = data.direction;
+        player.animation_count++;
+        
+        //TODO 後で描画処理は一元化する
+        renderCharacter(player.x, player.y, player.color, player.animation_count, player.direction);
+    });
+    
+    socket.on('setBomb', (data) => {
+        
+    });
+    
+    socket.on('explodeBomb', (data) => {
+        
+    });
+    
+    socket.on('cellsColored', (data) => {
+        
+    });
+    
+    socket.on('cellsObtained', (data) => {
+        
+    });
+    
+    socket.on('someoneDied', (data) => {
+        
+    });
+    
+    socket.on('youDied', (data) => {
+        
+    });
+}
+
+function setFieldSizeAndGetCanvas() {
     var w = $match.width();
     w = (w > 550) ? 550 : w;
     canvas_width = 0.9*w;
@@ -14229,21 +14322,6 @@ function roomMasterProcess() {
 }
 
 function roomMemberProcess(socket, battle_mode, participatingList) {
-    /*
-    switch (battle_mode) {
-        case 'fourMen':
-            $participate.prepend('<div id="current-battle-mode">バトルモード：4 men battle royal</div>');
-            break;
-        case 'twoOnTwo':
-            $participate.prepend('<div id="current-battle-mode">バトルモード：2 on 2 tag-team match</div>');
-            break;
-        case 'oneOnOne':
-            $participate.prepend('<div id="current-battle-mode">バトルモード：1 on 1 gachinko match</div>');
-            break;
-        default:
-            break;
-    }
-    */
     
     renderCurrentBattleMode();
     $participate.append(participate_button_html);
@@ -14294,21 +14372,30 @@ function renderCurrentParticipants(battle_mode, participatingList) {
         }
 }
 
-function renderInitialMatchState() {
-    clearField();
 
-    // fill the all cells with gray
-    for (let i = 0; i < H_CELL_NUM; i++) {
-      for (let j = 0; j < V_CELL_NUM; j++) {
-        ctx.fillStyle = "gray";
-        //ctx.fillRect(i*cell_length + 0.04*cell_length , j*cell_length  + 0.04*cell_length, cell_length*0.92, cell_length*0.92);
-        //ctx.fillRect(i*cell_length + 0.02*cell_length , j*cell_length  + 0.02*cell_length, cell_length*0.96, cell_length*0.96);
-        ctx.fillRect(i*cell_length , j*cell_length, cell_length, cell_length);
-      }
-    }
-    
+
+
+/**
+  * canvas drawing 
+  */
+function renderField() {
+    clearField();
+    fillCells();
     renderBlockBorder();
     
+    //TODO render bombs
+    
+    //TODO render flame
+    
+    drawCharacters();
+}
+
+
+ 
+function renderInitialMatchState() {
+    clearField();
+    fillCells();
+    renderBlockBorder();
     drawCharacters();
 }
 
@@ -14317,12 +14404,24 @@ function clearField() {
     ctx.fillRect(0, 0, canvas_width, canvas_height);
 }
 
+function fillCells() {
+    // fill the all cells with gray
+    for (let i = 0; i < H_CELL_NUM; i++) {
+      for (let j = 0; j < V_CELL_NUM; j++) {
+        ctx.fillStyle = cellStates[i][j].color;
+        //ctx.fillRect(i*cell_length + 0.04*cell_length , j*cell_length  + 0.04*cell_length, cell_length*0.92, cell_length*0.92);
+        //ctx.fillRect(i*cell_length + 0.02*cell_length , j*cell_length  + 0.02*cell_length, cell_length*0.96, cell_length*0.96);
+        ctx.fillRect(i*cell_length , j*cell_length, cell_length, cell_length);
+      }
+    }
+}
+
 function renderBlockBorder() {
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 5;
     for (let i = 0; i < H_CELL_NUM; i++) {
       for (let j = 0; j < V_CELL_NUM; j++) {
         if (i % 2 === 1 && j % 2 === 1) {
-            ctx.strokeStyle = "black";
-            ctx.lineWidth = 5;
             ctx.strokeRect(i*cell_length + 0.05*cell_length, j*cell_length + 0.05*cell_length, cell_length*0.9, cell_length*0.9);
         }
       }
@@ -14336,7 +14435,15 @@ function drawCharacters() {
     });
 }
 
-function renderCharacter(x, y, color, animation_count, direction) {
+function renderCharacter(x_raw, y_raw, color, animation_count, direction) {
+    // modifiy x and y value for current canvas size
+    let x = x_raw * cell_length;
+    let y = y_raw * cell_length;
+    
+    //quick fix for difference between server's positon and client's position origin. TODO modify later
+    x = x - 0.5 * cell_length;
+    y = y - 0.5 * cell_length;
+    
     switch (direction) {
       case 'right':
         animateRight(x, y, color, animation_count);
@@ -14363,7 +14470,7 @@ function animateRight(x, y, color, animation_count) {
   drawHeadAndBody(x, y);
   drawVerticalPostureLimbs(x, y, animation_count);
   // scarf
-  ctx.fillStyle = 'blue';
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(x+body_unit*7, y+body_unit*2);
   ctx.lineTo(x+body_unit*3, y+body_unit*2);

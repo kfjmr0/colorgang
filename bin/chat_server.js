@@ -30,7 +30,7 @@ function createChatStorage(room_id) {
     storedChatListMap[room_id] = [];
 }
 
-function emitEnterChat(room, player_name, socket, roomStateList, io) {
+function emitEnterChat(io, socket, room, roomStateList, player_name) {
     //TODO send room member list and stored chat to new comer
     var enter_message = { name: player_name, content: '入室しました' };
     pushChatList(enter_message, room.id);
