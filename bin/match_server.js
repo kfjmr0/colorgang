@@ -150,6 +150,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
             players: [],
             cellState: [],
             bombs : [],
+            bomb_count: 0
         };
         
         switch (roomStateList[room_id].battle_mode) {
@@ -180,7 +181,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
                 matchStateList[room_id].cellState[i][j] = {
                     color : STATE.plain,
                     isBlock: isBlock,
-                    bomb_index: null
+                    bomb_id: null
                 }
             }
         }
@@ -203,6 +204,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
 
 function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
     socket.on('askForMove', onAskForMove);
+    socket.on('askForSetBomb', onAskForSetBomb);
     //for remove
     //socket.removeListener('askForMove', onAskForMove);
     
@@ -216,28 +218,32 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
         
         switch (data.direction) {
             case 'up':
-                if (!isMovable([0, -1], room_id, player_index)) { return false; }
-                matchStateList[room_id].players[player_index].y -= MOVE_SPEED;
-                matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
-                matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
+                if (isMovable([0, -1], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].y -= MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
+                    matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
+                }
                 break;
             case 'down':
-                if (!isMovable([0, 1], room_id, player_index)) { return false; }
-                matchStateList[room_id].players[player_index].y += MOVE_SPEED;
-                matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
-                matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
+                if (isMovable([0, 1], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].y += MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
+                    matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
+                }
                 break;
             case 'left':
-                if (!isMovable([-1, 0], room_id, player_index)) { return false; }
-                matchStateList[room_id].players[player_index].x -= MOVE_SPEED;
-                matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
-                matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
+                if (isMovable([-1, 0], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].x -= MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
+                    matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
+                }
                 break;
             case 'right':
-                if (!isMovable([1, 0], room_id, player_index)) { return false; }
-                matchStateList[room_id].players[player_index].x += MOVE_SPEED;
-                matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
-                matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
+                if (isMovable([1, 0], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].x += MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
+                    matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
+                }
                 break;
             default:
                 return false;
@@ -256,19 +262,64 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
 
     
     function onAskForSetBomb(data) {
+        //TODO null check
+        //TODO room check
         
+        var room_id = playerRoomList[socket.id].room_id;
+        var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
+        var player = matchStateList[room_id].players[player_index];
+        
+        // TODO bomb number check
+        // TODO check if bomb is already set
+        if (player.bomb_num <= 0 ||
+            matchStateList[room_id].cellState[player.i][player.j].bomb_id !== null) {
+            return false;
+        } else {
+            let bomb_id = matchStateList[room_id].bomb_count++;
+            matchStateList[room_id].bombs.push({
+                id: bomb_id,
+                color: player.color
+            });
+            matchStateList[room_id].cellState[player.i][player.j].bomb_id = bomb_id;
+            player.bomb_num--;
+            
+            io.sockets.in(room_id).emit('setBomb', {
+                bomb_id: bomb_id,
+                color: player.color,
+                i: player.i,
+                j: player.j
+            });
+            
+            //TODO after 3 seconds explode the bomb
+            
+            
+        }
     }
 }
 
 function isMovable(direction, room_id, index) {
     let new_i = matchStateList[room_id].players[index].i + direction[0];
     let new_j = matchStateList[room_id].players[index].j + direction[1];
-    if (new_i < 0 || new_i >= H_CELL_NUM || new_j < 0 || new_j >= V_CELL_NUM ||
-        matchStateList[room_id].cellState[new_i][new_j].isBlock) {
+    let new_x = matchStateList[room_id].players[index].x + MOVE_SPEED * direction[0];
+    let new_y = matchStateList[room_id].players[index].y + MOVE_SPEED * direction[1];
+    //console.log(new_i, new_j, new_x, new_y);
+    
+    if (new_x < 0.4 || new_x > H_CELL_NUM - 0.4 || new_y < 0.4 || new_y > V_CELL_NUM - 0.4) {
         return false;
     }
     
+    if (matchStateList[room_id].cellState[new_i] &&
+        matchStateList[room_id].cellState[new_i][new_j] &&
+        matchStateList[room_id].cellState[new_i][new_j].isBlock) {
+            //console.log('block!');
+            return false;
+    }
+    
     // TODO check bomb existence
+    if (true) {
+        
+    }
+    
     return true;
 }
 

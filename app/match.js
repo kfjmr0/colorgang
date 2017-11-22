@@ -5,6 +5,9 @@ const FIRE_RANGE = 2;
 const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
+const TIME_TO_EXPLODE = 3000;
+const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
+
 var cell_length;
 var body_unit;
 var canvas, ctx, canvas_width, canvas_height;
@@ -15,7 +18,7 @@ var isRoomMaster = false;
 
 var players = [];
 var cellStates = [];
-var bombs = [];
+var bombs = {};
 
 const $match = $('#match-target');
 const $participate = $('#participate-target');
@@ -116,7 +119,7 @@ function setSocketEvent(socket) {
             for (let j = 0; j < V_CELL_NUM; j++) {
                 cellStates[i][j] = {
                     color: 'gray',
-                    state: 'normal'
+                    isFlame: false
                 }
             }
         }
@@ -196,13 +199,15 @@ function bindMatchSocketEvent(socket) {
         player.y = data.y;
         player.direction = data.direction;
         player.animation_count++;
-        
-        //TODO 後で描画処理は一元化する
-        renderCharacter(player.x, player.y, player.color, player.animation_count, player.direction);
     });
     
     socket.on('setBomb', (data) => {
-        
+        bombs[data.bomb_id] = {
+            i: data.i,
+            j: data.j,
+            color: data.color,
+            elapsed_time: 0
+        }
     });
     
     socket.on('explodeBomb', (data) => {
@@ -309,16 +314,10 @@ function renderField() {
     clearField();
     fillCells();
     renderBlockBorder();
-    
-    //TODO render bombs
-    
-    //TODO render flame
-    
+    renderBombs();
     drawCharacters();
 }
 
-
- 
 function renderInitialMatchState() {
     clearField();
     fillCells();
@@ -335,10 +334,27 @@ function fillCells() {
     // fill the all cells with gray
     for (let i = 0; i < H_CELL_NUM; i++) {
       for (let j = 0; j < V_CELL_NUM; j++) {
-        ctx.fillStyle = cellStates[i][j].color;
-        //ctx.fillRect(i*cell_length + 0.04*cell_length , j*cell_length  + 0.04*cell_length, cell_length*0.92, cell_length*0.92);
-        //ctx.fillRect(i*cell_length + 0.02*cell_length , j*cell_length  + 0.02*cell_length, cell_length*0.96, cell_length*0.96);
-        ctx.fillRect(i*cell_length , j*cell_length, cell_length, cell_length);
+        if (cellStates[i][j].isFlame) {
+            ctx.beginPath();
+            /* グラデーション領域をセット */
+            var grad  = ctx.createRadialGradient((i+0.5)*cell_length, (j+0.5)*cell_length, 0.15*cell_length, (i+0.5)*cell_length, (j+0.5)*cell_length, 0.45*cell_length);
+            /* グラデーション終点のオフセットと色をセット */
+            grad.addColorStop(0,'yellow');
+            grad.addColorStop(0.7,'firebrick');
+            grad.addColorStop(1,'dimgray');
+            /* グラデーションをfillStyleプロパティにセット */
+            ctx.fillStyle = grad;
+            /* 矩形を描画 */
+            ctx.rect(i*cell_length , j*cell_length, cell_length, cell_length);
+            ctx.fill();
+            //TODO restore cell state
+            
+        } else {
+            ctx.fillStyle = cellStates[i][j].color;
+            //ctx.fillRect(i*cell_length + 0.04*cell_length , j*cell_length  + 0.04*cell_length, cell_length*0.92, cell_length*0.92);
+            //ctx.fillRect(i*cell_length + 0.02*cell_length , j*cell_length  + 0.02*cell_length, cell_length*0.96, cell_length*0.96);
+            ctx.fillRect(i*cell_length , j*cell_length, cell_length, cell_length);
+        }
       }
     }
 }
@@ -355,9 +371,33 @@ function renderBlockBorder() {
     }
 }
 
+function renderBombs() {
+    Object.keys(bombs).forEach(function(id) {
+        drawBomb(bombs[id].i, bombs[id].j, bombs[id].color, bombs[id].elapsed_time);
+        bombs[id].elapsed_time += ANIMATION_DT;
+    });
+}
+
+function drawBomb(i, j, color, elapsed_time) {
+    let xo = i*cell_length + 0.5*cell_length;
+    let yo = j*cell_length + 0.5*cell_length;
+    let radius = 0.15 * cell_length * (1 + 2 * elapsed_time * r_TIME_TO_EXPLOSION);
+    radius = (radius > 0.45*cell_length) ? 0.45*cell_length : radius;
+    
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = color;
+    
+    ctx.beginPath();
+    ctx.arc(xo, yo, radius, 0, 2*Math.PI);
+    ctx.fill();
+    ctx.stroke();
+}
+
 function drawCharacters() {
     ctx.lineWidth = 1;
     players.forEach((player) => {
+        //TODO process dead characters
         renderCharacter(player.x, player.y, player.color, player.animation_count, player.direction);
     });
 }
@@ -390,7 +430,7 @@ function renderCharacter(x_raw, y_raw, color, animation_count, direction) {
 }
 
 function animateRight(x, y, color, animation_count) {
-  console.log('animateRight position:');
+  //console.log('animateRight position:');
   ctx.fillStyle = 'white';
   ctx.strokeStyle = 'black';
 
@@ -415,7 +455,7 @@ function animateRight(x, y, color, animation_count) {
 }
 
 function animateLeft(x, y, color, animation_count) {
-  console.log('left position :');
+  //console.log('left position :');
   ctx.fillStyle = 'white';
   ctx.strokeStyle = 'black';
 
@@ -440,7 +480,7 @@ function animateLeft(x, y, color, animation_count) {
 }
 
 function animateUp(x, y, color, animation_count) {
-  console.log('up position :');
+  //console.log('up position :');
   ctx.fillStyle = 'white';
   ctx.strokeStyle = 'black';
   drawHeadAndBody(x, y);
@@ -450,7 +490,7 @@ function animateUp(x, y, color, animation_count) {
 }
 
 function animateDown(x, y, color, animation_count) {
-  console.log('down position :');
+  //console.log('down position :');
   ctx.fillStyle = 'white';
   ctx.strokeStyle = 'black';
   drawHeadAndBody(x, y);
