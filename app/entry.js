@@ -1,5 +1,8 @@
 'use strict';
 const $ = require('jquery');
+const util = require('./utility');
+//TODO : replace url
+const socket = require('socket.io-client')('https://node-study-kfjmr0.c9users.io:8080/');//, {'sync disconnect on unload': true });
 const chat = require('./chat');
 const match = require('./match');
 
@@ -23,8 +26,6 @@ const top_html = '<h4>部屋一覧</h4><div id="room-list"></div><div id="make-r
               +'</form></div>';
 var $roomList;
 
-//TODO : replace url
-const socket = require('socket.io-client')('https://node-study-kfjmr0.c9users.io:8080/');//, {'sync disconnect on unload': true });
 
 socket.on('enterTopPage', (data) => {
     //$top.text('接続されました');
@@ -83,8 +84,8 @@ match.setSocketEvent(socket);
 
 
 function addRoom(room) {
-    $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + escapeHTML(room.name) + '</div><div class="panel-body">' 
-      + room.number + '人　 RM:' + escapeHTML(room.rm) + '<button class="btn btn-primary join-room" data-room-id="' + room.id + '">部屋に入る</button></div></div>');
+    $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + util.escapeHTML(room.name) + '</div><div class="panel-body">' 
+      + room.number + '人　 RM:' + util.escapeHTML(room.rm) + '<button class="btn btn-primary join-room" data-room-id="' + room.id + '">部屋に入る</button></div></div>');
     
     //$roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + room.name + '</div><div class="panel-body">' 
     //  + room.number + '人　 RM:' + room.rm
@@ -117,7 +118,3 @@ function addRoom(room) {
         //match.setEventHandler(socket);
     });
 }
-
-function escapeHTML(val) {
-    return $('<span>').text(val).html();
-};

@@ -1,17 +1,29 @@
 'use strict';
 const $ = require('jquery');
+const util = require('./utility');
 
 const FIRE_RANGE = 2;
 const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
+const PLAY_TIMEsec = 2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
+const COLOR_LIST = ['deeppink', 'mediumblue', 'lime', 'orange', 'gray'];
+const STATE = {
+    first_color: 0,
+    second_color: 1,
+    third_color: 2,
+    forth_color: 3,
+    plain: 4,
+    
+}
 
 var cell_length;
 var body_unit;
 var canvas, ctx, canvas_width, canvas_height;
 var renderer;
+var countdownTimer;
 
 var battle_mode;
 var isRoomMaster = false;
@@ -92,7 +104,9 @@ function setEventHandler(socket) {
     });
 }
 
-
+function unbindResizeEvent() {
+    $(window).off('resize');
+}
 
 function setSocketEvent(socket) {
     socket.on('enterMatch', (data) => {
@@ -117,9 +131,14 @@ function setSocketEvent(socket) {
         for (let i = 0; i < H_CELL_NUM; i++) {
             cellStates[i] = [];
             for (let j = 0; j < V_CELL_NUM; j++) {
+                let isBlock = false;
+                if (i % 2 === 1 && j % 2 === 1) {
+                    isBlock = true;
+                }
                 cellStates[i][j] = {
-                    color: 'gray',
-                    isFlame: false
+                    color: STATE.plain,
+                    isBlock: isBlock,
+                    flameCount: 0
                 }
             }
         }
@@ -130,24 +149,37 @@ function setSocketEvent(socket) {
                 color: player.color,
                 x: player.x,
                 y: player.y,
-                isDead: false,
                 animation_count: 0,
+                isDead: false,
+                dead_animation_count: 3,
                 direction: 'down'
             });
         });
         
         renderInitialMatchState();
-        //TODO render player's name
+        renderPlayerNamesAroundField();
+        $('#match-messagebox').text(PLAY_TIMEsec);
+        
     });
     
     socket.on('matchStart', (data) => {
         bindMatchSocketEvent(socket);
         bindMatchEvent(socket);
         renderer = setInterval(renderField, ANIMATION_DT);
+        
+        //TODO render watch timer in messagebox
+        let count = PLAY_TIMEsec;
+        countdownTimer = setInterval(() => {
+            count--;
+            $('#match-messagebox').text(count);
+        }, 1000);
     });
     
     socket.on('matchEnd', (data) => {
-        //TODO render result and unbind event
+        unbindMatchEvent();
+        //TODO stop renderer timer and render result
+        clearTimeout(renderer);
+        clearTimeout(countdownTimer);
         
     });
 }
@@ -160,6 +192,7 @@ function bindMatchEvent(socket) {
             key = e.keyCode,
             direction = '';
         e.preventDefault();
+        console.log('onkeydown');
         switch (key) {
             case 37:
             case 65:
@@ -192,6 +225,10 @@ function bindMatchEvent(socket) {
     
 }
 
+function unbindMatchEvent() {
+    $(window).off('keydown');
+}
+
 function bindMatchSocketEvent(socket) {
     socket.on('moveCharacter', (data) => {
         var player = players[data.player_index];
@@ -211,40 +248,96 @@ function bindMatchSocketEvent(socket) {
     });
     
     socket.on('explodeBomb', (data) => {
+        console.log('bomb explode');
+        let scanningDirections = [[1,0], [-1,0], [0,1], [0,-1]];
+        let bomb = bombs[data.bomb_id];
+        cellStates[bomb.i][bomb.j].flameCount = 3;
+        scanningDirections.forEach((direction) => {
+            for (let n = 1; n <= FIRE_RANGE; n++) {
+                let ni = bomb.i + n * direction[0];
+                let nj = bomb.j + n * direction[1];
+                //console.log(ni,nj);
+                if (ni < 0 || ni >= H_CELL_NUM || nj < 0 || nj >= V_CELL_NUM
+                    || cellStates[ni][nj].isBlock) {
+                        break;
+                }
+                cellStates[ni][nj].flameCount = 3;
+            }
+        });
         
+        //TODO play sound
+        
+        delete bombs[data.bomb_id];
     });
     
-    socket.on('cellsColored', (data) => {
-        
+    socket.on('cellsPainted', (data) => {
+        Object.keys(data.paintedCells).forEach((color) => {
+           data.paintedCells[color].forEach((position) => {
+               cellStates[position[0]][position[1]].color = color;
+           });
+        });
     });
     
     socket.on('cellsObtained', (data) => {
+        //TODO
         
+        //TODO play sound
     });
     
     socket.on('someoneDied', (data) => {
-        
+        //console.log('player ' + data.index + ' died');
+        players[data.index].isDead = true;
+        players[data.index].dead_animation_count = 100;
     });
     
     socket.on('youDied', (data) => {
-        
+        console.log('you died!')
+        unbindMatchEvent();
     });
 }
 
 function setFieldSizeAndGetCanvas() {
-    var w = $match.width();
+    $match.empty();
+    $match.append('<div id="match-messagebox"></div>');
+    $match.append('<div id="top-namespace"></div>');
+    $match.append('<div id="canvas-box"></div>');
+    $match.append('<div id="bottom-namespace"></div>');
+    
+    let $canvasbox = $('#canvas-box')
+    let w = $canvasbox.width();
     w = (w > 550) ? 550 : w;
     canvas_width = 0.9*w;
     canvas_height = canvas_width * V_CELL_NUM / H_CELL_NUM;
     cell_length = canvas_width / H_CELL_NUM;
     body_unit = cell_length / 10;
     
-    $match.html('<canvas id="canvas" width="' + canvas_width + 'px" height="' + canvas_height + 'px">'
+    $canvasbox.html('<canvas id="canvas" width="' + canvas_width + 'px" height="' + canvas_height + 'px">'
                     + 'ブラウザがCanvasに対応していません'
                 + '</canvas>');
     canvas = document.getElementById('canvas');
     if ( ! canvas || ! canvas.getContext ) { return false; }
     ctx = canvas.getContext('2d');
+}
+
+function renderPlayerNamesAroundField() {
+    players.forEach((player, index) => {
+        switch (index) {
+            case 0:
+                $('#top-namespace').append('<span style="color:' + COLOR_LIST[player.color] + '";">' + util.escapeHTML(player.name) + '</span>');
+                break;
+            case 1:
+                $('#top-namespace').append('<span class="right-name" style="color:' + COLOR_LIST[player.color] + '";">' + util.escapeHTML(player.name) + '</span>');
+                break;
+            case 2:
+                $('#bottom-namespace').append('<span style="color:' + COLOR_LIST[player.color] + '";">' + util.escapeHTML(player.name) + '</span>');
+                break;
+            case 3:
+                $('#bottom-namespace').append('<span class="right-name" style="color:' + COLOR_LIST[player.color] + '";">' + util.escapeHTML(player.name) + '</span>');
+                break;
+            default:
+                return false;
+        }
+    });
 }
 
 function roomMasterProcess() {
@@ -293,7 +386,7 @@ function renderCurrentParticipants(battle_mode, participatingList) {
             case 'fourMen':
             case 'oneOnOne':
                 participatingList.forEach((participants) => {
-                    $participants.append('<div>' + escapeHTML(participants) + '</div>');
+                    $participants.append('<div>' + util.escapeHTML(participants) + '</div>');
                 });
                 break;
             case 'twoOnTwo':
@@ -334,7 +427,7 @@ function fillCells() {
     // fill the all cells with gray
     for (let i = 0; i < H_CELL_NUM; i++) {
       for (let j = 0; j < V_CELL_NUM; j++) {
-        if (cellStates[i][j].isFlame) {
+        if (cellStates[i][j].flameCount > 0) {
             ctx.beginPath();
             /* グラデーション領域をセット */
             var grad  = ctx.createRadialGradient((i+0.5)*cell_length, (j+0.5)*cell_length, 0.15*cell_length, (i+0.5)*cell_length, (j+0.5)*cell_length, 0.45*cell_length);
@@ -347,10 +440,9 @@ function fillCells() {
             /* 矩形を描画 */
             ctx.rect(i*cell_length , j*cell_length, cell_length, cell_length);
             ctx.fill();
-            //TODO restore cell state
-            
+            cellStates[i][j].flameCount--;
         } else {
-            ctx.fillStyle = cellStates[i][j].color;
+            ctx.fillStyle = COLOR_LIST[cellStates[i][j].color];
             //ctx.fillRect(i*cell_length + 0.04*cell_length , j*cell_length  + 0.04*cell_length, cell_length*0.92, cell_length*0.92);
             //ctx.fillRect(i*cell_length + 0.02*cell_length , j*cell_length  + 0.02*cell_length, cell_length*0.96, cell_length*0.96);
             ctx.fillRect(i*cell_length , j*cell_length, cell_length, cell_length);
@@ -373,7 +465,7 @@ function renderBlockBorder() {
 
 function renderBombs() {
     Object.keys(bombs).forEach(function(id) {
-        drawBomb(bombs[id].i, bombs[id].j, bombs[id].color, bombs[id].elapsed_time);
+        drawBomb(bombs[id].i, bombs[id].j, COLOR_LIST[bombs[id].color], bombs[id].elapsed_time);
         bombs[id].elapsed_time += ANIMATION_DT;
     });
 }
@@ -397,8 +489,17 @@ function drawBomb(i, j, color, elapsed_time) {
 function drawCharacters() {
     ctx.lineWidth = 1;
     players.forEach((player) => {
-        //TODO process dead characters
-        renderCharacter(player.x, player.y, player.color, player.animation_count, player.direction);
+        if (player.isDead) {
+            //process dead characters
+            if (player.dead_animation_count > 0) {
+                //console.log('draw dead character');
+                drawDeadCharacter(player);
+                player.dead_animation_count--;
+            }
+
+        } else {
+            renderCharacter(player.x, player.y, COLOR_LIST[player.color], player.animation_count, player.direction);
+        }
     });
 }
 
@@ -431,8 +532,6 @@ function renderCharacter(x_raw, y_raw, color, animation_count, direction) {
 
 function animateRight(x, y, color, animation_count) {
   //console.log('animateRight position:');
-  ctx.fillStyle = 'white';
-  ctx.strokeStyle = 'black';
 
   drawHeadAndBody(x, y);
   drawVerticalPostureLimbs(x, y, animation_count);
@@ -456,8 +555,6 @@ function animateRight(x, y, color, animation_count) {
 
 function animateLeft(x, y, color, animation_count) {
   //console.log('left position :');
-  ctx.fillStyle = 'white';
-  ctx.strokeStyle = 'black';
 
   drawHeadAndBody(x, y);
   drawVerticalPostureLimbs(x, y, animation_count);
@@ -481,8 +578,6 @@ function animateLeft(x, y, color, animation_count) {
 
 function animateUp(x, y, color, animation_count) {
   //console.log('up position :');
-  ctx.fillStyle = 'white';
-  ctx.strokeStyle = 'black';
   drawHeadAndBody(x, y);
   drawHorizontalPostureLimbs(x, y, animation_count);
   drawHorizontalPostureScarf(x, y, color);
@@ -491,8 +586,6 @@ function animateUp(x, y, color, animation_count) {
 
 function animateDown(x, y, color, animation_count) {
   //console.log('down position :');
-  ctx.fillStyle = 'white';
-  ctx.strokeStyle = 'black';
   drawHeadAndBody(x, y);
   drawHorizontalPostureLimbs(x, y, animation_count);
   drawHorizontalPostureScarf(x, y, color);
@@ -514,7 +607,18 @@ function animateDown(x, y, color, animation_count) {
 
 }
 
+function drawDeadCharacter(player) {
+    //quick fix for difference between server's positon and client's position origin. TODO modify later
+    let x = (player.x - 0.5) * cell_length;
+    let y = (player.y - 0.5) * cell_length;
+    drawHeadAndBody(x, y);
+    drawHorizontalPostureLimbs(x, y, 0);
+    drawDeadMansFace(x, y);
+}
+
 function drawHeadAndBody(x, y) {
+  ctx.fillStyle = 'white';
+  ctx.strokeStyle = 'black';
   //body
   ctx.beginPath();
   ctx.ellipse(x + body_unit*5, y + body_unit*5, body_unit*1.5, body_unit*2, 0, 0, 2*Math.PI);
@@ -528,6 +632,8 @@ function drawHeadAndBody(x, y) {
 }
 
 function drawHorizontalPostureLimbs(x, y, animation_count) {
+  ctx.fillStyle = 'white';
+  ctx.strokeStyle = 'black';
   //left arm
   ctx.beginPath();
   ctx.ellipse(x + body_unit*2.5, y + body_unit*5.5, body_unit*0.9, body_unit * (1.7 - 0.4*Math.sin(animation_count*Math.PI/ 5)), 0, 0, 2 * Math.PI);
@@ -562,6 +668,8 @@ function drawHorizontalPostureScarf(x, y, color) {
 }
 
 function drawVerticalPostureLimbs(x, y, animation_count) {
+  ctx.fillStyle = 'white';
+  ctx.strokeStyle = 'black';
   var modification = Math.cos(animation_count*Math.PI / 5);
   //back leg
   ctx.beginPath();
@@ -580,14 +688,38 @@ function drawVerticalPostureLimbs(x, y, animation_count) {
   ctx.stroke();
 }
 
+function drawDeadMansFace(x, y) {
+    ctx.strokeStyle = 'black';
+    let eye_upperbound = 1;
+    let eye_lowerbound = 2;
+    let eye_space = 1.3;
+    // eyes
+    ctx.beginPath();
+    ctx.moveTo(x+body_unit*(5-eye_space), y+body_unit*eye_upperbound);
+    ctx.lineTo(x+body_unit*(5-eye_space + 1), y+body_unit*eye_lowerbound);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+body_unit*(5-eye_space + 1), y+body_unit*eye_upperbound);
+    ctx.lineTo(x+body_unit*(5-eye_space), y+body_unit*eye_lowerbound);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+body_unit*(5+eye_space), y+body_unit*eye_upperbound);
+    ctx.lineTo(x+body_unit*(5+eye_space - 1), y+body_unit*eye_lowerbound);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+body_unit*(5+eye_space - 1), y+body_unit*eye_upperbound);
+    ctx.lineTo(x+body_unit*(5+eye_space), y+body_unit*eye_lowerbound);
+    ctx.stroke();
 
+    // mouth
+    ctx.beginPath();
+    ctx.arc( x + body_unit*4.4, y + body_unit*2.5, body_unit * 0.6, 0, Math.PI );
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc( x + body_unit*5.6, y + body_unit*2.5, body_unit * 0.6, 0, Math.PI );
+    ctx.stroke();
+}
 
-
-
-
-function escapeHTML(val) {
-    return $('<span>').text(val).html();
-};
 
 module.exports = {
     init: init,
@@ -595,4 +727,5 @@ module.exports = {
     //setEventHandler: setEventHandler,
     roomMasterProcess: roomMasterProcess,
     //roomMemberProcess: roomMemberProcess,
+    unbindResizeEvent: unbindResizeEvent
 }

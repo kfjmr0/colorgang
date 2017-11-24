@@ -36,7 +36,21 @@ a {
   border: solid 1px gray;
   margin: 30px 0 30px 20px;
 }
-  
+
+#match-messagebox {
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+}
+
+#top-namespace, #bottom-namespace {
+  margin-left: 20px;
+  font-size: 18px;
+  font-weight: bold;
+}
+  .right-name {
+    margin-left: 150px;
+  }
   
 #participate-target {
   height: 200px;

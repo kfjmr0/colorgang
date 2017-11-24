@@ -167,6 +167,9 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
     console.log(playerRoomList);
     //TODO postprocess disconection (decrement user number in the room and if he's rm, ...)
+    
+    //TODO if he's rm, disconnect all members and delete rooms
+    
     //console.log();
   });
   

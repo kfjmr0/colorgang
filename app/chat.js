@@ -1,5 +1,6 @@
 'use strict';
 const $ = require('jquery');
+const util = require('./utility');
 const $chat = $('#chat-target');
 const $member = $('#member-target');
 
@@ -43,32 +44,28 @@ function setSocket(socket) {
     socket.on('enterChat', (data) => {
         console.log(data.memberList);
         data.memberList.forEach((member_name) => {
-            $('#member-list').append('<li class="list-group-item">'+ escapeHTML(member_name) +'</li>');
+            $('#member-list').append('<li class="list-group-item">'+ util.escapeHTML(member_name) +'</li>');
             
         });
         
         data.chatList.forEach((message) => {
-            $('#chat-content').prepend('<div class="chat-message">'+ escapeHTML(message.name) + '：' + escapeHTML(message.content) +'</div>');
+            $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(message.name) + '：' + util.escapeHTML(message.content) +'</div>');
         });
     });
     
     socket.on('newComer', (data) => {
-        $('#member-list').append('<li class="list-group-item">'+ escapeHTML(data.member_name) +'</li>');
+        $('#member-list').append('<li class="list-group-item">'+ util.escapeHTML(data.member_name) +'</li>');
         // TODO さんが入室しました
-        $('#chat-content').prepend('<div class="chat-message">'+ escapeHTML(data.member_name) +'：入室しました</div>');
+        $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(data.member_name) +'：入室しました</div>');
     });
     
     socket.on('someoneSpeak', (data) => {
         console.log('someoneSpeak');
-        $('#chat-content').prepend('<div class="chat-message">'+ escapeHTML(data.name) + '：' + escapeHTML(data.content) +'</div>');
+        $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(data.name) + '：' + util.escapeHTML(data.content) +'</div>');
         
     });
 }
 
-function escapeHTML(val) {
-    return $('<span>').text(val).html();
-};
-    
 module.exports = {
     init: init,
     setSocket: setSocket
