@@ -14030,7 +14030,6 @@ function init(socket) {
     
     
     
-    //TODO add event to speak form
     // event listener
     $('#speak-form').on('submit', (e) => {
         var content = $('#speak-content').val();
@@ -14063,7 +14062,6 @@ function setSocket(socket) {
     
     socket.on('newComer', (data) => {
         $('#member-list').append('<li class="list-group-item">'+ util.escapeHTML(data.member_name) +'</li>');
-        // TODO さんが入室しました
         $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(data.member_name) +'：入室しました</div>');
     });
     
@@ -14077,7 +14075,7 @@ function setSocket(socket) {
 module.exports = {
     init: init,
     setSocket: setSocket
-}
+};
 
 /***/ }),
 /* 26 */
@@ -14093,21 +14091,25 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
+const PLAY_TIMEsec = 15;//2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
-const COLOR_LIST = ['deeppink', 'mediumblue', 'lime', 'orange', 'gray'];
+var COLOR_LIST = [];//['deeppink', 'mediumblue', 'lime', 'orange', 'gray'];
 const STATE = {
     first_color: 0,
     second_color: 1,
     third_color: 2,
     forth_color: 3,
     plain: 4,
-    
 }
+const setBombSound = document.getElementById('setBombSound');
+const explodeSound = document.getElementById('explodeSound');
+const obtainSound = document.getElementById('obtainSound');
 
 var cell_length;
 var body_unit;
 var canvas, ctx, canvas_width, canvas_height;
 var renderer;
+var countdownTimer;
 
 var battle_mode;
 var isRoomMaster = false;
@@ -14205,7 +14207,7 @@ function setSocketEvent(socket) {
     });
     
     socket.on('participatingListChange', (data) => {
-        console.log('participatingListChange');
+        //console.log('participatingListChange');
         renderCurrentParticipants(data.battle_mode, data.participatingList)
     });
     
@@ -14222,10 +14224,16 @@ function setSocketEvent(socket) {
                 cellStates[i][j] = {
                     color: STATE.plain,
                     isBlock: isBlock,
-                    flameCount: 0
+                    flameCount: 0,
+                    obtainedCount: 0,
                 }
             }
         }
+        
+        //console.log(data.color_list);
+        data.color_list.forEach((color, index) => {
+            COLOR_LIST[index] = color;
+        });
         
         data.players.forEach((player) => {
             players.push({
@@ -14241,10 +14249,20 @@ function setSocketEvent(socket) {
         });
         
         renderInitialMatchState();
-        //TODO render player's name
-        renderPlayerNamesOnField();
+        renderPlayerNamesAroundField();
+        $('#match-messagebox').text(PLAY_TIMEsec);
         
-        //TODO countdown animation
+        let readycount = 3;
+        let readycountdown = setInterval(() => {
+            renderInitialMatchState();
+            ctx.fillStyle = 'black';
+            ctx.font = "150px 'Impact'";
+            ctx.fillText(readycount, 0.45*H_CELL_NUM*cell_length, 0.5*V_CELL_NUM*cell_length, 0.5*H_CELL_NUM*cell_length);
+            readycount--;
+            if (readycount <= 0) {
+                clearInterval(readycountdown);
+            }
+        }, 1000);
         
     });
     
@@ -14252,11 +14270,34 @@ function setSocketEvent(socket) {
         bindMatchSocketEvent(socket);
         bindMatchEvent(socket);
         renderer = setInterval(renderField, ANIMATION_DT);
+        
+        let count = PLAY_TIMEsec;
+        countdownTimer = setInterval(() => {
+            count--;
+            count = (count < 0) ? 0 : count;
+            $('#match-messagebox').text(count);
+        }, 1000);
     });
     
     socket.on('matchEnd', (data) => {
+        clearTimeout(countdownTimer);
+        clearTimeout(renderer);
         unbindMatchEvent();
-        //TODO stop renderer timer and render result
+        
+        //TODO render result
+        console.log('match end');
+        console.log(data);
+        if (data.hasWonByKill) {
+            $('#match-messagebox').text(data.result_message);
+        } else {
+            $('#match-messagebox').text(data.result_message);
+            
+            
+            
+            
+        }
+        
+        //TODO restore button state
         
         
     });
@@ -14270,7 +14311,7 @@ function bindMatchEvent(socket) {
             key = e.keyCode,
             direction = '';
         e.preventDefault();
-        console.log('onkeydown');
+        //console.log('onkeydown');
         switch (key) {
             case 37:
             case 65:
@@ -14323,10 +14364,15 @@ function bindMatchSocketEvent(socket) {
             color: data.color,
             elapsed_time: 0
         }
+        
+        if(typeof(setBombSound.currentTime) != 'undefined') {
+            setBombSound.currentTime = 0;
+        }
+        setBombSound.play();
     });
     
     socket.on('explodeBomb', (data) => {
-        console.log('bomb explode');
+        //console.log('bomb explode');
         let scanningDirections = [[1,0], [-1,0], [0,1], [0,-1]];
         let bomb = bombs[data.bomb_id];
         cellStates[bomb.i][bomb.j].flameCount = 3;
@@ -14343,7 +14389,10 @@ function bindMatchSocketEvent(socket) {
             }
         });
         
-        //TODO play sound
+        if(typeof(explodeSound.currentTime) != 'undefined') {
+            explodeSound.currentTime = 0;
+        }
+        explodeSound.play();
         
         delete bombs[data.bomb_id];
     });
@@ -14357,28 +14406,37 @@ function bindMatchSocketEvent(socket) {
     });
     
     socket.on('cellsObtained', (data) => {
-        //TODO
+        //console.log('on cellsObtained');
+        //console.log(data);
+        data.obtainedCells.forEach((enclosedCells) => {
+            enclosedCells.forEach((position) => {
+                cellStates[position[0]][position[1]].color = data.color;
+                cellStates[position[0]][position[1]].obtainedCount = 5;
+            });
+        });
         
-        //TODO play sound
+        if(typeof(obtainSound.currentTime) != 'undefined') {
+            obtainSound.currentTime = 0;
+        }
+        obtainSound.play();
+        
     });
     
     socket.on('someoneDied', (data) => {
         //console.log('player ' + data.index + ' died');
         players[data.index].isDead = true;
-        players[data.index].dead_animation_count = 100;
+        players[data.index].dead_animation_count = 5;
     });
     
     socket.on('youDied', (data) => {
-        console.log('you died!')
+        //console.log('you died!')
         unbindMatchEvent();
     });
 }
 
 function setFieldSizeAndGetCanvas() {
-    //if ($('#top-namespace')) { $('#top-namespace').remove(); }
-    //if ($('#bottom-namespace')) { $('#bottom-namespace').remove(); }
     $match.empty();
-    $match.append('<div id="match-messagebox">120</div>');
+    $match.append('<div id="match-messagebox"></div>');
     $match.append('<div id="top-namespace"></div>');
     $match.append('<div id="canvas-box"></div>');
     $match.append('<div id="bottom-namespace"></div>');
@@ -14399,7 +14457,7 @@ function setFieldSizeAndGetCanvas() {
     ctx = canvas.getContext('2d');
 }
 
-function renderPlayerNamesOnField() {
+function renderPlayerNamesAroundField() {
     players.forEach((player, index) => {
         switch (index) {
             case 0:
@@ -14481,7 +14539,7 @@ function renderCurrentParticipants(battle_mode, participatingList) {
 
 
 /**
-  * canvas drawing 
+  * canvas drawing
   */
 function renderField() {
     clearField();
@@ -14509,15 +14567,15 @@ function fillCells() {
       for (let j = 0; j < V_CELL_NUM; j++) {
         if (cellStates[i][j].flameCount > 0) {
             ctx.beginPath();
-            /* グラデーション領域をセット */
+            
             var grad  = ctx.createRadialGradient((i+0.5)*cell_length, (j+0.5)*cell_length, 0.15*cell_length, (i+0.5)*cell_length, (j+0.5)*cell_length, 0.45*cell_length);
-            /* グラデーション終点のオフセットと色をセット */
+
             grad.addColorStop(0,'yellow');
             grad.addColorStop(0.7,'firebrick');
             grad.addColorStop(1,'dimgray');
-            /* グラデーションをfillStyleプロパティにセット */
+
             ctx.fillStyle = grad;
-            /* 矩形を描画 */
+
             ctx.rect(i*cell_length , j*cell_length, cell_length, cell_length);
             ctx.fill();
             cellStates[i][j].flameCount--;
@@ -14526,9 +14584,19 @@ function fillCells() {
             //ctx.fillRect(i*cell_length + 0.04*cell_length , j*cell_length  + 0.04*cell_length, cell_length*0.92, cell_length*0.92);
             //ctx.fillRect(i*cell_length + 0.02*cell_length , j*cell_length  + 0.02*cell_length, cell_length*0.96, cell_length*0.96);
             ctx.fillRect(i*cell_length , j*cell_length, cell_length, cell_length);
+            if (cellStates[i][j].obtainedCount > 0) {
+                addObtainedEffect(i, j, cellStates[i][j].obtainedCount);
+            }
         }
+        if (cellStates[i][j].obtainedCount > 0) { cellStates[i][j].obtainedCount--; }
       }
     }
+}
+
+function addObtainedEffect(i, j, count) {
+    let effectcount = count % 4;
+    ctx.fillStyle = "white";
+    ctx.fillRect(i*cell_length + 0.25*effectcount*cell_length , j*cell_length, 0.25*cell_length, cell_length);
 }
 
 function renderBlockBorder() {
@@ -14557,7 +14625,7 @@ function drawBomb(i, j, color, elapsed_time) {
     radius = (radius > 0.45*cell_length) ? 0.45*cell_length : radius;
     
     ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 3;
     ctx.fillStyle = color;
     
     ctx.beginPath();
@@ -14808,7 +14876,7 @@ module.exports = {
     roomMasterProcess: roomMasterProcess,
     //roomMemberProcess: roomMemberProcess,
     unbindResizeEvent: unbindResizeEvent
-}
+};
 
 /***/ }),
 /* 27 */
@@ -14918,8 +14986,11 @@ exports.Socket = __webpack_require__(22);
 
 const $ = __webpack_require__(3);
 const util = __webpack_require__(8);
+
 //TODO : replace url
-const socket = __webpack_require__(27)('https://node-study-kfjmr0.c9users.io:8080/');//, {'sync disconnect on unload': true });
+const URL = 'https://node-study-kfjmr0.c9users.io:8080/';
+//const URL = '';
+const socket = __webpack_require__(27)(URL);//, {'sync disconnect on unload': true });
 const chat = __webpack_require__(25);
 const match = __webpack_require__(26);
 

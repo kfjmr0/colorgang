@@ -1,8 +1,11 @@
 'use strict';
 const $ = require('jquery');
 const util = require('./utility');
+
 //TODO : replace url
-const socket = require('socket.io-client')('https://node-study-kfjmr0.c9users.io:8080/');//, {'sync disconnect on unload': true });
+const URL = 'https://node-study-kfjmr0.c9users.io:8080/';
+//const URL = '';
+const socket = require('socket.io-client')(URL);//, {'sync disconnect on unload': true });
 const chat = require('./chat');
 const match = require('./match');
 

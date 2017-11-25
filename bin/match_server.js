@@ -7,14 +7,14 @@ const MOVE_SPEED = 1.0 / 3.0;
 const TIME_TO_EXPLODE = 3000;
 const PLAY_TIMEsec = 2 * 60;
 
-//const COLOR_LIST = ['deeppink', 'mediumblue', 'lime', 'orange'];
+const COLOR_LIST = ['deeppink', 'mediumblue', 'lime', 'orange'];
 const STATE = {
     first_color: 0,
     second_color: 1,
     third_color: 2,
     forth_color: 3,
     plain: 4,
-    hasOwnProperty: 5
+    hasFailed: 5
 }
 
 var matchStateList = [];
@@ -140,6 +140,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
 
     });
     
+    // ----- socket.on askForMatchStart start ----- //
     socket.on('askForMatchStart', (data) => {
         //TODO null check
         
@@ -199,31 +200,87 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         }
         
         
-        
-        
+        roomStateList[room_id].hasStarted = true;
+        matchStateList[room_id].color_list = createShuffledArray(COLOR_LIST);
+        matchStateList[room_id].color_list.push('gray');
         io.sockets.in(room_id).emit('matchReady', {
-            // eash player's color and position
-            players: matchStateList[room_id].players
+            players: matchStateList[room_id].players,
+            color_list: matchStateList[room_id].color_list
         });
         
-        //TODO 3 seconds later and make hasStarted true
-        io.sockets.in(room_id).emit('matchStart', {});
-        bindDuringPlaySocket(io, socket, playerRoomList, roomStateList);
         
-        //TODO emit match end and postprocess
-        
+        setTimeout(() => {
+            bindDuringPlaySocket(io, socket, playerRoomList, roomStateList);
+            io.sockets.in(room_id).emit('matchStart', {});
+            matchStateList[room_id].match_timer = setTimeout(() => {
+                endMatch(io, socket, room_id, false, '');
+            }, PLAY_TIMEsec * 1000);
+        }, 4000);
         
     });
+    // ----- socket.on askForMatchStart end ----- //
     
+}
+
+function endMatch(io, socket, room_id, hasWonByKill, message) {
+    clearTimeout(matchStateList[room_id].match_timer);
+    let result_message = '';
+    if (hasWonByKill) {
+        result_message = message;
+    } else {
+        //count points
+        matchStateList[room_id].result_points = [0, 0, 0, 0];
+        matchStateList[room_id].cellState.forEach((columns) => {
+            columns.forEach((cell) => {
+                if (cell.color === STATE.first_color || cell.color === STATE.second_color
+                    || cell.color === STATE.third_color || cell.color === STATE.forth_color) {
+                        matchStateList[room_id].result_points[cell.color]++;
+                    }
+            });
+        });
+        
+        let max = 0;
+        let max_point_winners = [];
+        matchStateList[room_id].result_points.forEach((val, index) => {
+            if (val === max) {
+                max_point_winners.push(matchStateList[room_id].players[index].name);
+            } else if (val > max) {
+                max_point_winners = [];
+                max_point_winners.push(matchStateList[room_id].players[index].name);
+            }
+        });
+        
+        //TODO switch battle_mode
+        if (max_point_winners.length === 4) {
+            result_message = 'Draw !'
+        } else {
+            max_point_winners.forEach((name, index) => {
+                result_message += name + ' '; 
+            });
+            result_message += ' Win !';
+        }
+    }
     
+    io.sockets.in(room_id).emit('matchEnd', {
+        hasWonByKill: hasWonByKill,
+        result_message: result_message,
+        points: matchStateList[room_id].result_points
+    });
+    
+    // TODO delete match related objects
+}
+
+
+//TODO failed to design modules...this doesnt work
+function unbindDuringPlaySocket(socket) {
+    //socket.removeListener('askForMove', onAskForMove);
+    //socket.removeListener('askForSetBomb', onAskForSetBomb);
 }
 
 function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
     socket.on('askForMove', onAskForMove);
     socket.on('askForSetBomb', onAskForSetBomb);
-    //for remove
-    //socket.removeListener('askForMove', onAskForMove);
-    
+
     
     function onAskForMove(data) {
         //TODO null check
@@ -273,9 +330,7 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
             y: matchStateList[room_id].players[player_index].y,
             direction: data.direction
         });
-        
-        
-        
+
     }
 
     
@@ -289,8 +344,6 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
         var bomb_id;
         
         if (player.isDead) { return false; }
-        // TODO bomb number check
-        // TODO check if bomb is already set
         if (player.bomb_num <= 0 ||
             matchStateList[room_id].cellState[player.i][player.j].bomb_id !== null) {
             return false;
@@ -312,7 +365,6 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
                 j: player.j
             });
             
-            //TODO after 3 seconds explode the bomb
             matchStateList[room_id].bombs[bomb_id].timer = setTimeout(() => {
                 //console.log(room_id);
                 explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, false, 'dummy');
@@ -346,15 +398,11 @@ function isMovable(direction, room_id, index) {
 }
 
 function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTriggeredByOther, triggeredDirection) {
-    //console.log(room_id);
-    //console.log(player);
-    //console.log(bomb_id);
     let bomb = matchStateList[room_id].bombs[bomb_id];
-    //let tmpMatrix = [];
     let color = player.color;
     let cellState = matchStateList[room_id].cellState;
     let scanningDirections = [[1,0], [-1,0], [0,1], [0,-1]];
-    //TODO initialize painted cells
+    //initialize painted cells
     let paintedCells = matchStateList[room_id].paintedCells;
     paintedCells = {};
     
@@ -362,9 +410,6 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
     player.bomb_num++;
     
     //clear bomb from cells and if exploded by other bombs clear timer
-    //console.log(bomb.i);
-    //console.log(bomb.j);
-    //console.log(bomb_id);
     if (isTriggeredByOther) { clearTimeout(bomb.timer); }
     cellState[bomb.i][bomb.j].bomb_id = null;
     
@@ -380,10 +425,8 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
     if (!paintedCells[color]) { paintedCells[color] = []; }
     paintedCells[color].push([bomb.i, bomb.j]);
     killPersonIn(bomb.i, bomb.j, io, socket, room_id, roomStateList);
-    //tmpMatrix[bomb.i][bomb.j] = -1;
     
     scanningDirections.forEach((direction) => {
-        
         if ( isTriggeredByOther
           && direction[0] === - triggeredDirection[0]
           && direction[1] === - triggeredDirection[1]) {
@@ -398,8 +441,6 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
                 break;
             }
             
-            // avoid infinite loop
-            //if (tmpMatrix[ni][nj] < 0) { return false; }
             
             // if the other bombs exist in the explosion range, detonate it
             if (cellState[ni][nj].bomb_id) {
@@ -416,8 +457,6 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
             
             //fire stop at block
             if (cellState[ni][nj].isBlock) { return false; }
-            
-            //tmpMatrix[ ni ][ nj ] = -1;
         }
         
     });
@@ -426,14 +465,27 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
         paintedCells: paintedCells
     });
     
-    //TODO evaluate enclosed cells and emit those
+    //evaluate enclosed cells and emit those
     evaluateEnclosure(paintedCells, room_id);
-    io.sockets.in(room_id).emit('cellsObtained', {
-        //TODO
+    //console.log('haaa?' + matchStateList[room_id].obtainedCells);
+    Object.keys(matchStateList[room_id].obtainedCells).forEach((color) => {
+        console.log(matchStateList[room_id].obtainedCells[color]);
+        if (matchStateList[room_id].obtainedCells[color].length > 0) {
+            io.sockets.in(room_id).emit('cellsObtained', {
+                color: color,
+                obtainedCells: matchStateList[room_id].obtainedCells[color]
+            });
+        }
     });
+    
     
     //TODO delete bomb object
     delete matchStateList[room_id].bombs[bomb_id];
+    
+    // end match if the only one person or team is left, or no one is left
+    setTimeout(() => {
+        judgeWhetherEndMatch(io, socket, room_id, roomStateList);
+    }, 500);
     
 }
 
@@ -449,21 +501,55 @@ function killPersonIn(ni, nj, io, socket, room_id, roomStateList) {
             if (roomStateList[room_id].participatingIdList[index] === socket.id) {
                 io.sockets.connected[socket.id].emit('youDied', {});
             }
-            
-            //TODO the only one person or team is left, he wins
-            
         }
     });
+
 }
 
+function judgeWhetherEndMatch(io, socket, room_id, roomStateList) {
+    switch (roomStateList[room_id].battle_mode) {
+        case 'fourMen':
+        case 'oneOnOne':
+            let number = 0;
+            let last_index;
+            matchStateList[room_id].players.forEach((player, index) => {
+                if (!player.isDead) {
+                    number++;
+                    last_index = index
+                }
+            });
+            if (number === 1) {
+                io.sockets.in(room_id).emit('matchEnd', {
+                    hasWonByKill: true,
+                    result_message: matchStateList[room_id].players[last_index].name + ' Win !',
+                    points: []
+                });
+                clearTimeout(matchStateList[room_id].match_timer);
+            }
+            if (number === 0) {
+                io.sockets.in(room_id).emit('matchEnd', {
+                    hasWonByKill: false,
+                    result_message:' Win !',
+                    points: []
+                });
+                clearTimeout(matchStateList[room_id].match_timer);
+            }
+            break;
+        case 'twoOnTwo':
+            //TODO
+            
+            break;
+        default:
+            return false;
+    }
+}
 
 function evaluateEnclosure(paintedCells, room_id) {
-    let obtainedCells = matchStateList[room_id].obtainedCells;
-    obtainedCells = {};
+    matchStateList[room_id].obtainedCells = {};
     
     //console.log(paintedCells);
     Object.keys(paintedCells).forEach((color) => {
-        obtainedCells[color] = [];
+        matchStateList[room_id].obtainedCells[color] = [];
         createTmpMatrix(matchStateList[room_id].cellState, matchStateList[room_id].tmpMatrix);
         
         paintedCells[color].forEach((position) => {
@@ -475,16 +561,16 @@ function evaluateEnclosure(paintedCells, room_id) {
                     if (next_i <= 0 || next_i >= H_CELL_NUM -1 || next_j <= 0 || next_j >= V_CELL_NUM -1) { continue; }
                     if (matchStateList[room_id].cellState[next_i][next_j].color !== parseInt(color, 10)
                         && matchStateList[room_id].tmpMatrix[next_i][next_j] >= 0) {
-                        console.log(matchStateList[room_id].cellState[next_i][next_j].color);
+                        //console.log(matchStateList[room_id].cellState[next_i][next_j].color);
                         //console.log(typeof matchStateList[room_id].cellState[next_i][next_j].color);
-                        console.log(color);
+                        //console.log(color);
                         //console.log(typeof color)
                         
                         //let tmpObtainedCells = [];
                         //tmpObtainedCells.push([]);
                         
-                        obtainedCells[color].push([]);
-                        checkPeriphery(next_i, next_j, obtainedCells[color], matchStateList[room_id].cellState, matchStateList[room_id].tmpMatrix, parseInt(color, 10));
+                        matchStateList[room_id].obtainedCells[color].push([]);
+                        checkPeriphery(next_i, next_j, matchStateList[room_id].obtainedCells[color], matchStateList[room_id].cellState, matchStateList[room_id].tmpMatrix, parseInt(color, 10));
                         /*
                         checkPeriphery(next_i, next_j, tmpObtainedCells, matchStateList[room_id].cellState, matchStateList[room_id].tmpMatrix, parseInt(color, 10));
                         if (tmpObtainedCells.length > 0) {
@@ -504,76 +590,19 @@ function evaluateEnclosure(paintedCells, room_id) {
         });
     });
     
-    Object.keys(obtainedCells).forEach((color) => {
+    //TODO reflect obtained cells color
+    Object.keys(matchStateList[room_id].obtainedCells).forEach((color) => {
         console.log(color);
-        console.log(obtainedCells[color]);
-        obtainedCells[color].forEach((cells) => {
+        console.log(matchStateList[room_id].obtainedCells[color]);
+        matchStateList[room_id].obtainedCells[color].forEach((cells) => {
             cells.forEach((position) => {
-                console.log(position);
+                //console.log(position);
             });
         });
     });
-    
-    
-    
-/*    
-  var
-    i, j, ki, kj, ip, jp,
-    lastObtainedCellsLength = 0,
-    obtainedCells = {};
-    
-  if ( paintedCells.length === 0 ) { return false; }
-  //copyMatrix( currentMatrix, ownTmpMatrix );
-  //copyMatrix( currentMatrix, enemyTmpMatrix );
-  paintedCells.forEach( function( val ) {
-    i = val[0];
-    j = val[1];
-    
-    for( ki = -1; ki < 2; ki++ ) {
-      for( kj = -1; kj < 2; kj++ ) {
-        if ( Math.abs(ki) + Math.abs(kj) !== 1 ) { continue; }
-        ip = i + ki;
-        jp = j + kj;
-        //if ( ip < 0 || ip >= CELL_NUM || jp < 0 || jp >= CELL_NUM ) {
-        if ( ip <= 0 || ip >= CELL_NUM -1 || jp <= 0 || jp >= CELL_NUM -1 ) {
-          continue;
-        }
-        
-        if ( currentMatrix[i][j] === STATE.OWN_COLOR 
-          && currentMatrix[ip][jp] !== STATE.OWN_COLOR ) 
-        {
-          ownObtainedCells.push([]);
-          checkPeriphery( ip, jp, ownObtainedCells, ownTmpMatrix, STATE.OWN_COLOR );
-          
-          // reflect obtained cells in the matrix
-          if (ownObtainedCells.length > lastObtainedCellsLength) {
-            lastObtainedCellsLength++;
-            ownObtainedCells[ownObtainedCells.length-1].forEach( function (v) {
-              currentMatrix[v[0]][v[1]] = STATE.OWN_COLOR;
-            });
-          }
-        }
-        
-      }
-    }
-    
-  });
-
-  //console.log(ownObtainedCells);
-  
-  if (ownObtainedCells.length > 0) {
-    return ownObtainedCells;
-  } else if (enemyObtainedCells.length > 0) {
-    return enemyObtainedCells;
-  } else {
-    return null;
-  }
-  */
-
 };
 
 function checkPeriphery(n, m, obtainedCells, cellState, tmpMatrix, color) {
-    //TODO should use hasChecked flag instead of tmpMatrix?
     if (tmpMatrix[n][m] === STATE.hasFailed
         || (cellState[n][m].color !== color && (n - 1 < 0 || n + 1 >= H_CELL_NUM || m - 1 < 0 || m + 1 >= V_CELL_NUM))) {
             obtainedCells[obtainedCells.length - 1].forEach((position) => {
@@ -581,15 +610,15 @@ function checkPeriphery(n, m, obtainedCells, cellState, tmpMatrix, color) {
                 
             });
             obtainedCells.pop();
-            console.log('fail ' + n +' '+ m);
-            console.log(obtainedCells);
+            //console.log('fail ' + n +' '+ m);
+            //console.log(obtainedCells);
             return false;
     }
     
     obtainedCells[obtainedCells.length - 1].push([n, m]);
-    console.log('push ' + n +' '+ m);
-    console.log(obtainedCells);
     tmpMatrix[n][m] = -1;
+    //console.log('push ' + n +' '+ m);
+    //console.log(obtainedCells);
     
     for (let i = -1; i < 2; i++) {
         for (let j = -1; j < 2; j++) {
@@ -598,7 +627,7 @@ function checkPeriphery(n, m, obtainedCells, cellState, tmpMatrix, color) {
             if (tmpMatrix[n + i][m + j] >= 0
                 && cellState[n + i][m + j].color !== color) {
                     if (!checkPeriphery(n + i, m + j, obtainedCells, cellState, tmpMatrix, color)) {
-                        //console.log('debug1: checkPeriphery false');
+                        console.log('debug1: checkPeriphery false');
                         return false;
                     }
             }
@@ -607,7 +636,6 @@ function checkPeriphery(n, m, obtainedCells, cellState, tmpMatrix, color) {
     console.log("return true");
     return true;
 };
-
 
 
 function emitParticipatingListChange(io, socket, roomStateList, room_id) {
@@ -679,8 +707,20 @@ function createTmpMatrix(cellState, tmpMatrix) {
     }
 }
 
+function createShuffledArray(array) {
+    let new_array = [];
+    new_array = array.slice();
+    for(let i = new_array.length - 1; i > 0; i--){
+        let r = Math.floor(Math.random() * (i + 1));
+        let tmp = new_array[i];
+        new_array[i] = new_array[r];
+        new_array[r] = tmp;
+    }
+    return new_array;
+}
+
 
 module.exports = {
     setSocket: setSocket,
     emitEnterMatch: emitEnterMatch
-}
+};

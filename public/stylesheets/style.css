@@ -38,9 +38,10 @@ a {
 }
 
 #match-messagebox {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
-  text-align: center;
+  margin-left: 100px;
+  padding-left: 100px;
 }
 
 #top-namespace, #bottom-namespace {

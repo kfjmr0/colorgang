@@ -1,5 +1,6 @@
 extends layout
 
+
 block content
   div(id='top') 部屋を取得しています
   div(class='conteiner')
@@ -13,5 +14,7 @@ block content
       div(class='col-xs-12 col-md-5')
         div(id='member-target')
   
-  
+  audio(id="setBombSound" src="/sounds/packun_eating.mp3" preload="auto")
+  audio(id="explodeSound" src="/sounds/explode_sound.mp3" preload="auto")
+  audio(id="obtainSound" src="/sounds/obtain_sound.mp3" preload="auto")
   script(src="/javascripts/bundle.js")

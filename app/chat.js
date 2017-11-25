@@ -22,7 +22,6 @@ function init(socket) {
     
     
     
-    //TODO add event to speak form
     // event listener
     $('#speak-form').on('submit', (e) => {
         var content = $('#speak-content').val();
@@ -55,7 +54,6 @@ function setSocket(socket) {
     
     socket.on('newComer', (data) => {
         $('#member-list').append('<li class="list-group-item">'+ util.escapeHTML(data.member_name) +'</li>');
-        // TODO さんが入室しました
         $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(data.member_name) +'：入室しました</div>');
     });
     
@@ -69,4 +67,4 @@ function setSocket(socket) {
 module.exports = {
     init: init,
     setSocket: setSocket
-}
+};

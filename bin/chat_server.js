@@ -58,4 +58,4 @@ module.exports = {
     setSocket: setSocket,
     createChatStorage: createChatStorage,
     emitEnterChat: emitEnterChat
-}
+};
