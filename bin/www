@@ -152,6 +152,7 @@ io.on('connection', (socket) => {
     roomMap[room_id] = room;
     roomStateList[room_id] = {
       memberList : [],
+      memberIdList: [],
       room_master: socket.id,
       battle_mode: 'fourMen',
       participatingIdList: [],
@@ -195,7 +196,7 @@ io.on('connection', (socket) => {
   
   
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    //console.log('user disconnected');
     //console.log(playerRoomList);
     
     if (playerRoomList[socket.id]) {
@@ -205,20 +206,24 @@ io.on('connection', (socket) => {
         let room = roomStateList[room_id];
         if (room.room_master === socket.id) {
           //TODO postprocess of disconnection of room master, disconnect all members and delete rooms
-          
-          
+          roomStateList[room_id].memberIdList.forEach((id) => {
+            io.sockets.connected[id].disconnect();
+            delete playerRoomList[id];
+          });
+          delete roomStateList[room_id];
         } else {
           // postprocess of disconnection of member (decrement user number in the room)
           // make chat and match send message and 
-          let member_index = room.memberList.indexOf(player_name);
+          let member_index = room.memberIdList.indexOf(socket.id);
           room.memberList.splice(member_index, 1);
+          room.memberIdList.splice(member_index, 1);
           room.number -= 1;
           chat_server.emitLeaveRoom(io, socket, room, roomStateList, player_name);
           
           //TODO if he's in participating list ...
-          //match_server.postprocessLeaveRoom(io, socket, room, roomStateList);
+          //match_server.postprocessLeaveRoom(io, socket, room_id, roomStateList);
           // hasStarted kadouka?
-          
+          match_server.postprocessLeaveRoom(io, socket, room_id, roomStateList, playerRoomList);
           delete playerRoomList[socket.id];
         }
       }
@@ -241,6 +246,7 @@ function joinRoom(socket, room, player_name) {
     if (existsSamePlayerName) { return false; }
 
     roomStateList[room.id].memberList.push(player_name);
+    roomStateList[room.id].memberIdList.push(socket.id);
   } else {
     return false;
   }

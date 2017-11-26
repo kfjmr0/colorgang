@@ -884,8 +884,60 @@ function createShuffledArray(array) {
     return new_array;
 }
 
+function postprocessLeaveRoom(io, socket, room_id, roomStateList, playerRoomList) {
+    var room_id = playerRoomList[socket.id].room_id;
+    if (roomStateList[room_id].hasStarted) { return false; }
+    var battle_mode = roomStateList[room_id].battle_mode;
+    
+    // remove member from list
+    switch(battle_mode) {
+        case 'fourMen':
+            var index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
+            if (index < 0) { return false; }
+            roomStateList[room_id].participatingIdList.splice(index, 1);
+            roomStateList[room_id].participatingNameList.splice(index, 1);
+            
+            emitParticipatingListChange(io, socket, roomStateList, room_id);
+            break;
+        case 'oneOnOne':
+            var index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
+            if (index < 0) { return false; }
+            roomStateList[room_id].participatingIdList.splice(index, 1);
+            roomStateList[room_id].participatingNameList.splice(index, 1);
+            
+            emitParticipatingListChange(io, socket, roomStateList, room_id);
+            break;
+        case 'twoOnTwo':
+            let a_index = roomStateList[room_id].teamAIdList.indexOf(socket.id);
+            let b_index = roomStateList[room_id].teamBIdList.indexOf(socket.id);
+            if (a_index >= 0) {
+                roomStateList[room_id].teamAIdList.splice(a_index, 1);
+                roomStateList[room_id].teamANameList.splice(a_index, 1);
+                //roomStateList[room_id].participatingIdList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+                //roomStateList[room_id].participatingNameList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+            } else if (b_index >= 0) {
+                roomStateList[room_id].teamBIdList.splice(b_index, 1);
+                roomStateList[room_id].teamBNameList.splice(b_index, 1);
+                //roomStateList[room_id].participatingIdList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+                //roomStateList[room_id].participatingNameList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+            } else {
+                return false;
+            }
+            
+            io.sockets.in(room_id).emit('participatingListChange', {
+                battle_mode: roomStateList[room_id].battle_mode,
+                teamAList: roomStateList[room_id].teamANameList,
+                teamBList: roomStateList[room_id].teamBNameList
+            });
+            break;
+        default:
+            return false;
+    }
+}
+
 
 module.exports = {
     setSocket: setSocket,
-    emitEnterMatch: emitEnterMatch
+    emitEnterMatch: emitEnterMatch,
+    postprocessLeaveRoom: postprocessLeaveRoom
 };
