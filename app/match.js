@@ -7,7 +7,7 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
-const PLAY_TIMEsec = 15;//2*60;
+const PLAY_TIMEsec = 2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
 var COLOR_LIST = [];//['deeppink', 'mediumblue', 'lime', 'orange', 'gray'];
 const STATE = {
@@ -39,7 +39,7 @@ const $participate = $('#participate-target');
 
 const mode_selector_html = '<form class="form-horizontal">'
                            +' <div class="form-group">'
-                           +' 		<label class="col-sm-2 control-label" for="InputSelect">モード選択</label>'
+                           +' 		<label class="col-sm-2 control-label" for="battle-mode-selector">モード選択</label>'
                            +' 		<div class="col-sm-10">'
                            +' 			<select id="battle-mode-selector" class="form-control">'
                            +' 				<option value="fourMen">4 men battle royal</option>'
@@ -54,7 +54,17 @@ const participate_button_html = '<span id="participate-button"></span>';
 const participate_join_html = '<button id="participate-join-button" class="btn btn-success">参戦する</button>';
 const participate_cancel_html = '<button id="participate-cancel-button" class="btn btn-danger">キャンセル</button>';
 const participants_html = '<div id="participants-list"></div>';
-
+const team_selector_html = '<form id="team-selector-form" class="form-horizontal">'
+                           +' <div class="form-group">'
+                           +' 		<label class="col-sm-2 control-label" for="team-selector">チーム選択</label>'
+                           +' 		<div class="col-sm-10">'
+                           +' 			<select id="team-selector" class="form-control">'
+                           +' 				<option value="A">A</option>'
+                           +' 				<option value="B">B</option>'
+                           +' 			</select>'
+                           +' 		</div>'
+                           +' 	</div>'
+                           +' </form>';
 
 
 
@@ -75,34 +85,46 @@ function setEventHandler(socket) {
             })
         });
         
-        setJoinEvent();
+        //setJoinEvent(socket);
         
         if (isRoomMaster) {
             $('#match-start-button').click(() => {
                 socket.emit('askForMatchStart', {});
-                $('#match-start-button').prop("disabled", false);
             });
         }
         
-        
-        function setJoinEvent() {
-            $('#participate-join-button').click(() => {
-                console.log('join-button clicked');
-                socket.emit('participateJoin', {
-                    // TODO which team in case of tag-team match
-                });
-                $('#participate-button').html(participate_cancel_html);
-                setCancelEvent();
-            });
+    });
+}
+
+function setJoinEvent(socket) {
+    if (battle_mode === 'twoOnTwo') {
+        $('#participate-join-button').after(team_selector_html);
+    } else {
+        if ($('#team-selector-form')) {
+            $('#team-selector-form').remove();
         }
-        
-        function setCancelEvent() {
-            $('#participate-cancel-button').click(() => {
-                socket.emit('participateCancel', {});
-                $('#participate-button').html(participate_join_html);
-                setJoinEvent();
-            });
+    }
+    // prevent binding multi event
+    $('#participate-join-button').off('click');
+    $('#participate-join-button').click(() => {
+        //console.log('join-button clicked');
+        if (battle_mode === 'twoOnTwo') {
+            var team = $('#team-selector').val();
         }
+        socket.emit('participateJoin', {
+            team: team
+        });
+        
+        $('#participate-button').html(participate_cancel_html);
+        setCancelEvent(socket);
+    });
+}
+
+function setCancelEvent(socket) {
+    $('#participate-cancel-button').click(() => {
+        socket.emit('participateCancel', {});
+        $('#participate-button').html(participate_join_html);
+        setJoinEvent(socket);
     });
 }
 
@@ -112,19 +134,21 @@ function unbindResizeEvent() {
 
 function setSocketEvent(socket) {
     socket.on('enterMatch', (data) => {
-        battle_mode = data.battle_mode;
         roomMemberProcess(socket, data.battle_mode, data.participatingList);
     });
     
     socket.on('modeChange', (data) => {
         //console.log('on mode change')
         battle_mode = data.battle_mode;
+        setJoinEvent(socket);
         renderCurrentBattleMode();
     });
     
     socket.on('participatingListChange', (data) => {
         //console.log('participatingListChange');
-        renderCurrentParticipants(data.battle_mode, data.participatingList)
+        //console.log(data);
+        battle_mode = data.battle_mode;
+        renderCurrentParticipants(data);
     });
     
     socket.on('matchReady', (data) => {
@@ -164,6 +188,10 @@ function setSocketEvent(socket) {
             });
         });
         
+        $('#match-start-button').prop("disabled", true);
+        $('#participate-join-button').prop("disabled", true);
+        $('#participate-cancel-button').prop("disabled", true);
+        
         renderInitialMatchState();
         renderPlayerNamesAroundField();
         $('#match-messagebox').text(PLAY_TIMEsec);
@@ -200,22 +228,36 @@ function setSocketEvent(socket) {
         clearTimeout(renderer);
         unbindMatchEvent();
         
-        //TODO render result
-        console.log('match end');
-        console.log(data);
+        //console.log('match end');
+        //console.log(data);
         if (data.hasWonByKill) {
             $('#match-messagebox').text(data.result_message);
         } else {
-            $('#match-messagebox').text(data.result_message);
-            
-            
-            
-            
+            switch (data.battle_mode) {
+                    case 'fourMen':
+                        data.points.forEach((point, index) => {
+                            $('#match-messagebox').append('<span style="color:' + COLOR_LIST[index] + '";">' + util.escapeHTML(point) + '　</span>');
+                        });
+                        $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
+                        break;
+                    case 'oneOnOne':
+                    case 'twoOnTwo':
+                        $('#match-messagebox').append('<span style="color:' + COLOR_LIST[0] + '";">' + util.escapeHTML(data.points[0]) + '　</span>');
+                        $('#match-messagebox').append('<span style="color:' + COLOR_LIST[1] + '";">' + util.escapeHTML(data.points[1]) + '　</span>');
+                        $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
+                        break;
+                    default:
+                        return false;
+            }
         }
         
-        //TODO restore button state
+
         
-        
+        // restore button state
+        $('#match-start-button').prop("disabled", false);
+        $('#participate-join-button').prop("disabled", false);
+        $('#participate-cancel-button').prop("disabled", false);
+        setJoinEvent(socket);
     });
 }
 
@@ -431,24 +473,31 @@ function renderCurrentBattleMode() {
     
 }
 
-function renderCurrentParticipants(battle_mode, participatingList) {
+function renderCurrentParticipants(data) {
     const $participants = $('#participants-list');
     $participants.empty();
     $participants.append('<div>――参戦者――</div>');
-    
-    switch (battle_mode) {
+    //console.log(data);
+    switch (data.battle_mode) {
             case 'fourMen':
             case 'oneOnOne':
-                participatingList.forEach((participants) => {
+                data.participatingList.forEach((participants) => {
                     $participants.append('<div>' + util.escapeHTML(participants) + '</div>');
                 });
                 break;
             case 'twoOnTwo':
-                // TODO
+                $participants.append('<div id="teamA" class="col-xs-6">Aチーム</div>');
+                $participants.append('<div id="teamB" class="col-xs-6">Bチーム</div>');
+                data.teamAList.forEach((participants) => {
+                    $('#teamA').append('<div>' + util.escapeHTML(participants) + '</div>');
+                });
+                data.teamBList.forEach((participants) => {
+                    $('#teamB').append('<div>' + util.escapeHTML(participants) + '</div>');
+                });
                 break;
             default:
-                break;
-        }
+                return false;
+    }
 }
 
 

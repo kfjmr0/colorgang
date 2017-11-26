@@ -17,10 +17,7 @@ const member_html = '<ul id="member-list" class="list-group">'
 function init(socket) {
     $chat.html(chat_html);
     $member.html(member_html);
-    console.log('chat start');
-    
-    
-    
+    //console.log('chat start');
     
     // event listener
     $('#speak-form').on('submit', (e) => {
@@ -41,11 +38,8 @@ function init(socket) {
 
 function setSocket(socket) {
     socket.on('enterChat', (data) => {
-        console.log(data.memberList);
-        data.memberList.forEach((member_name) => {
-            $('#member-list').append('<li class="list-group-item">'+ util.escapeHTML(member_name) +'</li>');
-            
-        });
+        //console.log(data.memberList);
+        renderMemberList(data.memberList);
         
         data.chatList.forEach((message) => {
             $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(message.name) + '：' + util.escapeHTML(message.content) +'</div>');
@@ -58,11 +52,24 @@ function setSocket(socket) {
     });
     
     socket.on('someoneSpeak', (data) => {
-        console.log('someoneSpeak');
+        //console.log('someoneSpeak');
         $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(data.name) + '：' + util.escapeHTML(data.content) +'</div>');
         
     });
+    
+    socket.on('someoneLeave', (data) => {
+        $('#chat-content').prepend('<div class="chat-message">'+ util.escapeHTML(data.member_name) +'：退室しました</div>');
+        renderMemberList(data.memberList);
+    });
 }
+
+function renderMemberList(memberList) {
+    $member.html(member_html);
+    memberList.forEach((member_name) => {
+        $('#member-list').append('<li class="list-group-item">'+ util.escapeHTML(member_name) +'</li>');
+    });
+}
+
 
 module.exports = {
     init: init,

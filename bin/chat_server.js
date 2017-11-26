@@ -1,14 +1,18 @@
 'use strict';
+const common = require('./common');
+
 const MAX_STORED_CHAT = 20;
 const storedChatListMap = {};
 
 function setSocket(io, socket, playerRoomList, roomStateList) {
     socket.on('speak', (data) => {
-        // TODO null check/ implement isValidSocketId()??/make browser re-render top-page
+        // check socket.id and room_id/ implement isValidSocketId()??/make browser re-render top-page
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
+        
         var room_id = playerRoomList[socket.id].room_id;
         var name = playerRoomList[socket.id].name;
         var content;
-        if (!data.content) {
+        if (!data.content || typeof data.content !== "string") {
             console.log('content does not exist');
             return false;
         } else {
@@ -21,7 +25,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         pushChatList(chat_message, room_id);
         
         //console.log(room_id + ' ' + name);
-        console.log(chat_message);
+        //console.log(chat_message);
         io.sockets.in(room_id).emit('someoneSpeak', chat_message);
     });
 }
@@ -31,7 +35,7 @@ function createChatStorage(room_id) {
 }
 
 function emitEnterChat(io, socket, room, roomStateList, player_name) {
-    //TODO send room member list and stored chat to new comer
+    //send room member list and stored chat to new comer
     var enter_message = { name: player_name, content: '入室しました' };
     pushChatList(enter_message, room.id);
     
@@ -40,12 +44,23 @@ function emitEnterChat(io, socket, room, roomStateList, player_name) {
         chatList: storedChatListMap[room.id]
     });
     
-    //TODO send message to room member noticing new comer
-    socket.broadcast.to(room.id).emit('newComer', {
+    //send message to room member noticing new comer
+    socket.broadcast.in(room.id).emit('newComer', {
         member_name: player_name
     });
-    
 }
+
+function emitLeaveRoom(io, socket, room, roomStateList, player_name) {
+    //send message to room member noticing someone leave
+    var leave_message = { name: player_name, content: '退室しました' };
+    pushChatList(leave_message, room.id);
+    socket.broadcast.in(room.id).emit('someoneLeave', {
+        member_name: player_name,
+        memberList: roomStateList[room.id].memberList
+    });
+}
+
+
 
 function pushChatList(message, room_id) {
     storedChatListMap[room_id].push(message);
@@ -57,5 +72,6 @@ function pushChatList(message, room_id) {
 module.exports = {
     setSocket: setSocket,
     createChatStorage: createChatStorage,
-    emitEnterChat: emitEnterChat
+    emitEnterChat: emitEnterChat,
+    emitLeaveRoom: emitLeaveRoom
 };

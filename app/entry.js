@@ -31,17 +31,21 @@ var $roomList;
 
 
 socket.on('enterTopPage', (data) => {
-    //$top.text('接続されました');
-    //$top.text(data.loadavg.toString());
-    //$top.text(data.roomList.toString());
-    
     //clear gaming room element
     $match_target.empty();
     $participate_target.empty();
     $chat_target.empty();
     $member_target.empty();
+    match.unbindResizeEvent();
+    
+    //console.log(data);
+    if (data.hasFailedToValidate) {
+        $top.text('部屋の取得に失敗しました');
+        return false;
+    }
     
     $top.html(top_html);
+    
     
     $roomList = $('#room-list');
     if (data.roomMap) {
@@ -50,6 +54,11 @@ socket.on('enterTopPage', (data) => {
           addRoom(data.roomMap[key]);
         });
     }
+    
+    $top.append('<div>ロードアベレージ:' + data.loadavg + '</div>');
+    $top.append('<div>メモリ使用率:' + data.memory_utilization + '</div>');
+    
+    
     $('#make-room-form').on('submit', (e) => {
         var player_name = $('#player-name').val();
         var room_name = $('#room-name').val();
@@ -70,7 +79,6 @@ socket.on('enterTopPage', (data) => {
         match.init(socket);
         
         match.roomMasterProcess();
-        //match.setEventHandler(socket);
     });
 
 });
@@ -87,18 +95,15 @@ match.setSocketEvent(socket);
 
 
 function addRoom(room) {
-    $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + util.escapeHTML(room.name) + '</div><div class="panel-body">' 
-      + room.number + '人　 RM:' + util.escapeHTML(room.rm) + '<button class="btn btn-primary join-room" data-room-id="' + room.id + '">部屋に入る</button></div></div>');
-    
-    //$roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + room.name + '</div><div class="panel-body">' 
-    //  + room.number + '人　 RM:' + room.rm
-    //  + '<form class="join-room-form"><input type="hidden" name="roomid" value="' + room.id + '"><button type="submit" class="btn btn-primary">部屋に入る</button></form></div></div>');
+    $roomList.prepend('<div class="panel panel-default"><div class="panel-heading">' + util.escapeHTML(room.name) + '</div><div class="panel-body">人数　' 
+      + room.number + '/10　 RM:' + util.escapeHTML(room.rm) + '<button class="btn btn-primary join-room" data-room-id="' + room.id + '">部屋に入る</button></div></div>');
     
     // $(this) works only in function() description???
     $('.join-room').click(function (e) {
         e.preventDefault();
         var player_name = window.prompt('10文字以下でプレーヤー名を入力して下さい');
         player_name = player_name ? player_name.trim() : '';
+        if (player_name === null) { return false; }
         if (!player_name) {
             window.alert('プレーヤー名を入力して下さい');
             return false;
@@ -106,7 +111,7 @@ function addRoom(room) {
             window.alert('10文字以下で入力して下さい');
             return false;
         }
-        console.log(player_name);
+        //console.log(player_name);
         //console.log($(this).data('room-id'));
         socket.emit('joinRoom', {
             room_id: $(this).data('room-id'),
@@ -116,8 +121,5 @@ function addRoom(room) {
         $top.empty();
         chat.init(socket);
         match.init(socket);
-        
-        
-        //match.setEventHandler(socket);
     });
 }

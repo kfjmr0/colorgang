@@ -1,4 +1,6 @@
 'use strict';
+const common = require('./common');
+
 const BOMB_NUM = 3;
 const FIRE_RANGE = 2;
 const V_CELL_NUM = 11;
@@ -19,17 +21,43 @@ const STATE = {
 
 var matchStateList = [];
 
-const isDev = true;
+const isDev = false;
 const dummyIdList = ['1', '2', '3'];
 const dummyNameList = ['dummy1', 'dummy2', 'dummy3'];
 
 
-function emitEnterMatch(io, socket, room, roomStateList) {
+function emitEnterMatch(io, socket, room, roomStateList, playerRoomList) {
     io.sockets.connected[socket.id].emit('enterMatch', {
-      // TODO null check
       battle_mode: roomStateList[room.id].battle_mode,
       participatingList: roomStateList[room.id].participatingNameList
     });
+    
+    io.sockets.connected[socket.id].emit('modeChange', {
+      battle_mode: roomStateList[room.id].battle_mode,
+    });
+    
+    switch (roomStateList[room.id].battle_mode) {
+        case 'fourMen':
+        case 'oneOnOne':
+            io.sockets.connected[socket.id].emit('participatingListChange', {
+                battle_mode: roomStateList[room.id].battle_mode,
+                participatingList: roomStateList[room.id].participatingNameList
+            });
+            break;
+        case 'twoOnTwo':
+            io.sockets.connected[socket.id].emit('participatingListChange', {
+                battle_mode: roomStateList[room.id].battle_mode,
+                teamAList: roomStateList[room.id].teamANameList,
+                teamBList: roomStateList[room.id].teamBNameList
+            });
+            break;
+        default:
+            return false;
+    }
+    
+
+    
+    
     
     if (isDev) {
         roomStateList[room.id].participatingIdList = dummyIdList;
@@ -41,21 +69,29 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     
     
     socket.on('askForModeChange', (data) => {
-        // TODO null check
-        var room_id = playerRoomList[socket.id].room_id;
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
+        var room_id = playerRoomList[socket.id].room_id;
         if (socket.id !== roomStateList[room_id].room_master || roomStateList[room_id].hasStarted) {
             return false;
         }
         //console.log('mode change '+ data.battle_mode);
+        emptyParticipatingList(room_id, roomStateList);
         switch(data.battle_mode) {
             case 'twoOnTwo':
-                //TODO process for tag-team
-                roomStateList[room_id].teamAIdList = [];
+                roomStateList[room_id].battle_mode = data.battle_mode;
+                io.sockets.in(room_id).emit('modeChange', {battle_mode: data.battle_mode});
+                io.sockets.in(room_id).emit('participatingListChange', {
+                    battle_mode: roomStateList[room_id].battle_mode,
+                    teamAList: roomStateList[room_id].teamANameList,
+                    teamBList: roomStateList[room_id].teamBNameList
+                });
+                break;
             case 'fourMen':
             case 'oneOnOne':
                 roomStateList[room_id].battle_mode = data.battle_mode;
                 io.sockets.in(room_id).emit('modeChange', {battle_mode: data.battle_mode});
+                emitParticipatingListChange(io, socket, roomStateList, room_id);
                 break;
             default:
                 return false;
@@ -63,7 +99,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     });
     
     socket.on('participateJoin', (data) => {
-        // TODO null check
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
         var room_id = playerRoomList[socket.id].room_id;
         if (roomStateList[room_id].hasStarted) { return false; }
@@ -88,11 +124,35 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
                 emitParticipatingListChange(io, socket, roomStateList, room_id);
                 break;
             case 'twoOnTwo':
-                //TODO
-                
+                if (data && data.team) { 
+                    var team = data.team; 
+                } else {
+                    return false;
+                }
+                //console.log('team : ' + data.team);
+                if (team === 'A') {
+                    if (roomStateList[room_id].teamAIdList.length >=2 ||
+                        roomStateList[room_id].teamAIdList.indexOf(socket.id) >= 0 ||
+                        roomStateList[room_id].teamBIdList.indexOf(socket.id) >= 0 ) {return false;}
+                            roomStateList[room_id].teamAIdList.push(socket.id);
+                            roomStateList[room_id].teamANameList.push(playerRoomList[socket.id].name);
+                            //roomStateList[room_id].participatingIdList.push(socket.id);
+                            //roomStateList[room_id].participatingNameList.push(playerRoomList[socket.id].name);
+                } else if (team ==='B') {
+                    if (roomStateList[room_id].teamBIdList.length >=2 ||
+                        roomStateList[room_id].teamAIdList.indexOf(socket.id) >= 0 ||
+                        roomStateList[room_id].teamBIdList.indexOf(socket.id) >= 0 ) {return false;}
+                            roomStateList[room_id].teamBIdList.push(socket.id);
+                            roomStateList[room_id].teamBNameList.push(playerRoomList[socket.id].name);
+                            //roomStateList[room_id].participatingIdList.push(socket.id);
+                            //roomStateList[room_id].participatingNameList.push(playerRoomList[socket.id].name);
+                } else {
+                    return false;
+                }
                 io.sockets.in(room_id).emit('participatingListChange', {
-                    
-                    // teamA list and teamB list
+                    battle_mode: roomStateList[room_id].battle_mode,
+                    teamAList: roomStateList[room_id].teamANameList,
+                    teamBList: roomStateList[room_id].teamBNameList
                 });
                 break;
             default:
@@ -101,7 +161,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     });
     
     socket.on('participateCancel', (data) => {
-        //TODO null check
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
 
         var room_id = playerRoomList[socket.id].room_id;
         if (roomStateList[room_id].hasStarted) { return false; }
@@ -126,12 +186,26 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
                 emitParticipatingListChange(io, socket, roomStateList, room_id);
                 break;
             case 'twoOnTwo':
-                //TODO
+                let a_index = roomStateList[room_id].teamAIdList.indexOf(socket.id);
+                let b_index = roomStateList[room_id].teamBIdList.indexOf(socket.id);
+                if (a_index >= 0) {
+                    roomStateList[room_id].teamAIdList.splice(a_index, 1);
+                    roomStateList[room_id].teamANameList.splice(a_index, 1);
+                    //roomStateList[room_id].participatingIdList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+                    //roomStateList[room_id].participatingNameList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+                } else if (b_index >= 0) {
+                    roomStateList[room_id].teamBIdList.splice(b_index, 1);
+                    roomStateList[room_id].teamBNameList.splice(b_index, 1);
+                    //roomStateList[room_id].participatingIdList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+                    //roomStateList[room_id].participatingNameList.splice(roomStateList[room_id].participatingIdList.indexOf(socket.id), 1);
+                } else {
+                    return false;
+                }
                 
                 io.sockets.in(room_id).emit('participatingListChange', {
-                    
-                    // teamA list and teamB list
-                    
+                    battle_mode: roomStateList[room_id].battle_mode,
+                    teamAList: roomStateList[room_id].teamANameList,
+                    teamBList: roomStateList[room_id].teamBNameList
                 });
                 break;
             default:
@@ -142,17 +216,15 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     
     // ----- socket.on askForMatchStart start ----- //
     socket.on('askForMatchStart', (data) => {
-        //TODO null check
-        
-        //TODO check if valid participants numbers
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
         var room_id = playerRoomList[socket.id].room_id;
         if (socket.id !== roomStateList[room_id].room_master || roomStateList[room_id].hasStarted) {
             return false;
         }
         
+        if (!isValidParticipantsNumber(room_id, roomStateList)) { return false; }
         
-        //TODO prepare variables for match
         matchStateList[room_id] = {
             players: [],
             cellState: [],
@@ -165,19 +237,33 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         
         switch (roomStateList[room_id].battle_mode) {
             case 'fourMen':
-                //
                 setTopLeftPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[0]);
                 setTopRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[1]);
                 setDownLeftPerson(matchStateList[room_id].players, STATE.third_color, roomStateList[room_id].participatingNameList[2]);
                 setDownRightPerson(matchStateList[room_id].players, STATE.forth_color, roomStateList[room_id].participatingNameList[3]);
                 break;
             case 'oneOnOne':
-                
-                
+                setTopLeftPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[0]);
+                setDownRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[1]);
                 break;
             case 'twoOnTwo':
+                //teamA
+                roomStateList[room_id].participatingIdList[0] = roomStateList[room_id].teamAIdList[0];
+                roomStateList[room_id].participatingNameList[0] =roomStateList[room_id].teamANameList[0];
+                roomStateList[room_id].participatingIdList[2] = roomStateList[room_id].teamAIdList[1];
+                roomStateList[room_id].participatingNameList[2] =roomStateList[room_id].teamANameList[1];
                 
-                 
+                //teamB
+                roomStateList[room_id].participatingIdList[1] = roomStateList[room_id].teamBIdList[0];
+                roomStateList[room_id].participatingNameList[1] =roomStateList[room_id].teamBNameList[0];
+                roomStateList[room_id].participatingIdList[3] = roomStateList[room_id].teamBIdList[1];
+                roomStateList[room_id].participatingNameList[3] =roomStateList[room_id].teamBNameList[1];
+                
+                setTopLeftPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[0]);
+                setTopRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[1]);
+                setDownLeftPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[2]);
+                setDownRightPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[3]);                
+                
                 break;
             default:
                 return false;
@@ -213,7 +299,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
             bindDuringPlaySocket(io, socket, playerRoomList, roomStateList);
             io.sockets.in(room_id).emit('matchStart', {});
             matchStateList[room_id].match_timer = setTimeout(() => {
-                endMatch(io, socket, room_id, false, '');
+                endMatch(io, socket, roomStateList, room_id, false, '');
             }, PLAY_TIMEsec * 1000);
         }, 4000);
         
@@ -222,7 +308,34 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     
 }
 
-function endMatch(io, socket, room_id, hasWonByKill, message) {
+function isValidParticipantsNumber(room_id, roomStateList) {
+    switch (roomStateList[room_id].battle_mode) {
+        case 'fourMen':
+            if (roomStateList[room_id].participatingIdList.length === 4) {
+                return true;
+            } else {
+                return false;
+            }
+        case 'oneOnOne':
+            if (roomStateList[room_id].participatingIdList.length === 2) {
+                return true;
+            } else {
+                return false;
+            }
+        case 'twoOnTwo':
+            if (roomStateList[room_id].teamAIdList === 2 && roomStateList[room_id].teamBIdList === 2) {
+                return true;
+            } else {
+                return false;
+            }
+        default:
+            return false;
+    }
+}
+
+
+
+function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     clearTimeout(matchStateList[room_id].match_timer);
     let result_message = '';
     if (hasWonByKill) {
@@ -235,7 +348,7 @@ function endMatch(io, socket, room_id, hasWonByKill, message) {
                 if (cell.color === STATE.first_color || cell.color === STATE.second_color
                     || cell.color === STATE.third_color || cell.color === STATE.forth_color) {
                         matchStateList[room_id].result_points[cell.color]++;
-                    }
+                }
             });
         });
         
@@ -250,14 +363,39 @@ function endMatch(io, socket, room_id, hasWonByKill, message) {
             }
         });
         
-        //TODO switch battle_mode
-        if (max_point_winners.length === 4) {
-            result_message = 'Draw !'
-        } else {
-            max_point_winners.forEach((name, index) => {
-                result_message += name + ' '; 
-            });
-            result_message += ' Win !';
+        
+        switch (roomStateList[room_id].battle_mode) {
+            case 'fourMen':
+                if (max_point_winners.length === 4) {
+                    result_message = 'Draw !';
+                } else {
+                    max_point_winners.forEach((name, index) => {
+                        result_message += name + ' '; 
+                    });
+                    result_message += ' Win !';
+                }
+                break;
+            case 'oneOnOne':
+                if (max_point_winners.length === 2) {
+                    result_message = 'Draw !';
+                } else {
+                    max_point_winners.forEach((name, index) => {
+                        result_message += name + ' '; 
+                    });
+                    result_message += ' Win !';
+                }
+                break;
+            case 'twoOnTwo':
+                if (matchStateList[room_id].result_points[0] > matchStateList[room_id].result_points[1]) {
+                    result_message += 'team A Win !';
+                } else if (matchStateList[room_id].result_points[0] < matchStateList[room_id].result_points[1]) {
+                    result_message += 'team B Win !';
+                } else {
+                    result_message += 'Draw !';
+                }
+                break;
+            default:
+                break;
         }
     }
     
@@ -267,11 +405,16 @@ function endMatch(io, socket, room_id, hasWonByKill, message) {
         points: matchStateList[room_id].result_points
     });
     
-    // TODO delete match related objects
+    emptyParticipatingList(roomStateList, room_id);
+    
+    roomStateList[room_id].hasStarted = false;
+    
+    //delete match related objects
+    delete matchStateList[room_id];
 }
 
 
-//TODO failed to design modules...this doesnt work
+//TODO remove socket event/failed to design modules...this doesnt work
 function unbindDuringPlaySocket(socket) {
     //socket.removeListener('askForMove', onAskForMove);
     //socket.removeListener('askForSetBomb', onAskForSetBomb);
@@ -283,10 +426,11 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
 
     
     function onAskForMove(data) {
-        //TODO null check
-        //TODO room check
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
         var room_id = playerRoomList[socket.id].room_id;
+        if (!isParticipants(socket, roomStateList, room_id)) { return false; }
+        
         var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
         var player = matchStateList[room_id].players[player_index];
         if (player.isDead) { return false; }
@@ -335,10 +479,11 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
 
     
     function onAskForSetBomb(data) {
-        //TODO null check
-        //TODO room check
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
         var room_id = playerRoomList[socket.id].room_id;
+        if (!isParticipants(socket, roomStateList, room_id)) { return false; }
+        
         var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
         var player = matchStateList[room_id].players[player_index];
         var bomb_id;
@@ -372,6 +517,14 @@ function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
             }, TIME_TO_EXPLODE);
             
         }
+    }
+}
+
+function isParticipants(socket, roomStateList, room_id) {
+    if (roomStateList[room_id].participatingIdList.indexOf(socket.id) < 0) {
+        return false;
+    } else {
+        return true;
     }
 }
 
@@ -469,7 +622,7 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
     evaluateEnclosure(paintedCells, room_id);
     //console.log('haaa?' + matchStateList[room_id].obtainedCells);
     Object.keys(matchStateList[room_id].obtainedCells).forEach((color) => {
-        console.log(matchStateList[room_id].obtainedCells[color]);
+        //console.log(matchStateList[room_id].obtainedCells[color]);
         if (matchStateList[room_id].obtainedCells[color].length > 0) {
             io.sockets.in(room_id).emit('cellsObtained', {
                 color: color,
@@ -479,7 +632,7 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
     });
     
     
-    //TODO delete bomb object
+    //delete bomb object
     delete matchStateList[room_id].bombs[bomb_id];
     
     // end match if the only one person or team is left, or no one is left
@@ -515,29 +668,36 @@ function judgeWhetherEndMatch(io, socket, room_id, roomStateList) {
             matchStateList[room_id].players.forEach((player, index) => {
                 if (!player.isDead) {
                     number++;
-                    last_index = index
+                    last_index = index;
                 }
             });
             if (number === 1) {
-                io.sockets.in(room_id).emit('matchEnd', {
-                    hasWonByKill: true,
-                    result_message: matchStateList[room_id].players[last_index].name + ' Win !',
-                    points: []
-                });
-                clearTimeout(matchStateList[room_id].match_timer);
+                let result_message = matchStateList[room_id].players[last_index].name + ' Win !';
+                endMatch(io, socket, roomStateList, room_id, true, result_message);
             }
             if (number === 0) {
-                io.sockets.in(room_id).emit('matchEnd', {
-                    hasWonByKill: false,
-                    result_message:' Win !',
-                    points: []
-                });
-                clearTimeout(matchStateList[room_id].match_timer);
+                endMatch(io, socket, roomStateList, room_id, false, '');
             }
             break;
         case 'twoOnTwo':
-            //TODO
-            
+            let teamAnumber = 0;
+            let teamBnumber = 0;
+            matchStateList[room_id].players.forEach((player, index) => {
+                if (!player.isDead) {
+                    if (roomStateList[room_id].teamAIdList.indexOf(roomStateList[room_id].participatingIdList[index]) >= 0) {
+                        teamAnumber++;
+                    } else if (roomStateList[room_id].teamBIdList.indexOf(roomStateList[room_id].participatingIdList[index]) >= 0) {
+                        teamBnumber++;
+                    }
+                }
+            });
+            if (teamAnumber !== 0 && teamBnumber === 0) {
+                endMatch(io, socket, roomStateList, room_id, true, 'team A Win !');
+            } else if (teamAnumber === 0 && teamBnumber !== 0) {
+                endMatch(io, socket, roomStateList, room_id, true, 'team B Win !');
+            } else if (teamAnumber === 0 && teamBnumber === 0) {
+                endMatch(io, socket, roomStateList, room_id, false, '');
+            }
             break;
         default:
             return false;
@@ -566,40 +726,25 @@ function evaluateEnclosure(paintedCells, room_id) {
                         //console.log(color);
                         //console.log(typeof color)
                         
-                        //let tmpObtainedCells = [];
-                        //tmpObtainedCells.push([]);
-                        
                         matchStateList[room_id].obtainedCells[color].push([]);
                         checkPeriphery(next_i, next_j, matchStateList[room_id].obtainedCells[color], matchStateList[room_id].cellState, matchStateList[room_id].tmpMatrix, parseInt(color, 10));
-                        /*
-                        checkPeriphery(next_i, next_j, tmpObtainedCells, matchStateList[room_id].cellState, matchStateList[room_id].tmpMatrix, parseInt(color, 10));
-                        if (tmpObtainedCells.length > 0) {
-                            obtainedCells[color].push([]);
-                            console.log(tmpObtainedCells[0]);
-                            tmpObtainedCells[0].forEach((position) => {
-                                console.log(position);
-                                obtainedCells[color][obtainedCells[color].length - 1].push([position[0], position[1]]);
-                                console.log(obtainedCells[color]);
-                            });
-                            //obtainedCells[color].push(tmpObtainedCells[0].slice());
-                        }
-                        */
                     }
                 }
             }
         });
     });
     
-    //TODO reflect obtained cells color
+    /*
     Object.keys(matchStateList[room_id].obtainedCells).forEach((color) => {
-        console.log(color);
-        console.log(matchStateList[room_id].obtainedCells[color]);
+        //console.log(color);
+        //console.log(matchStateList[room_id].obtainedCells[color]);
         matchStateList[room_id].obtainedCells[color].forEach((cells) => {
             cells.forEach((position) => {
                 //console.log(position);
             });
         });
     });
+    */
 };
 
 function checkPeriphery(n, m, obtainedCells, cellState, tmpMatrix, color) {
@@ -623,27 +768,47 @@ function checkPeriphery(n, m, obtainedCells, cellState, tmpMatrix, color) {
     for (let i = -1; i < 2; i++) {
         for (let j = -1; j < 2; j++) {
             if ( Math.abs(i) + Math.abs(j) !== 1 ) { continue; }
-            console.log('debug0: i' + i + ' j '+ j + ' tmpMatrix[n + i][m + j] ' + tmpMatrix[n + i][m + j] + ' cellState[n + i][m + j].color ' +  cellState[n + i][m + j].color);
+            //console.log('debug0: i' + i + ' j '+ j + ' tmpMatrix[n + i][m + j] ' + tmpMatrix[n + i][m + j] + ' cellState[n + i][m + j].color ' +  cellState[n + i][m + j].color);
             if (tmpMatrix[n + i][m + j] >= 0
                 && cellState[n + i][m + j].color !== color) {
                     if (!checkPeriphery(n + i, m + j, obtainedCells, cellState, tmpMatrix, color)) {
-                        console.log('debug1: checkPeriphery false');
+                        //console.log('debug1: checkPeriphery false');
                         return false;
                     }
             }
         }
     }
-    console.log("return true");
+    //console.log("return true");
     return true;
 };
 
 
 function emitParticipatingListChange(io, socket, roomStateList, room_id) {
-    console.log('participating battle mode ' +roomStateList[room_id].battle_mode+ ' participatingList '+ roomStateList[room_id].participatingNameList);
+    //console.log('participating battle mode ' +roomStateList[room_id].battle_mode+ ' participatingList '+ roomStateList[room_id].participatingNameList);
     io.sockets.in(room_id).emit('participatingListChange', {
         battle_mode: roomStateList[room_id].battle_mode,
         participatingList: roomStateList[room_id].participatingNameList
     });
+}
+
+function emptyParticipatingList(room_id, roomStateList) {
+    switch(roomStateList[room_id].battle_mode) {
+        case 'twoOnTwo':
+            roomStateList[room_id].teamAIdList = [];
+            roomStateList[room_id].teamANameList = [];
+            roomStateList[room_id].teamBIdList = [];
+            roomStateList[room_id].teamBNameList = [];
+            roomStateList[room_id].participatingIdList = [];
+            roomStateList[room_id].participatingNameList = [];
+            break;
+        case 'fourMen':
+        case 'oneOnOne':
+            roomStateList[room_id].participatingIdList = [];
+            roomStateList[room_id].participatingNameList = [];
+            break;
+        default:
+            return false;
+    }
 }
 
 function setTopLeftPerson (players, color, name) {
