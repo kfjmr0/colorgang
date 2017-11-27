@@ -1,5 +1,6 @@
 'use strict';
 
+//TODO should roomMap be included in condition??
 function isValidSocketId(io, socket, playerRoomList, roomStateList) {
     if (playerRoomList[socket.id]) {
       let room_id = playerRoomList[socket.id].room_id;

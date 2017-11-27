@@ -216,17 +216,17 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     
     // ----- socket.on askForMatchStart start ----- //
     socket.on('askForMatchStart', (data) => {
-        console.log('on askForMatchStart');
+        //console.log('on askForMatchStart');
         if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
         var room_id = playerRoomList[socket.id].room_id;
         if (socket.id !== roomStateList[room_id].room_master || roomStateList[room_id].hasStarted) {
-            console.log('hes not room master or game has alredy started');
+            //console.log('hes not room master or game has alredy started');
             return false;
         }
         
         if (!isValidParticipantsNumber(room_id, roomStateList)) { 
-            console.log('participating number is illegal');
+            //console.log('participating number is illegal');
             return false;
         }
         
@@ -254,20 +254,23 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
             case 'twoOnTwo':
                 //teamA
                 roomStateList[room_id].participatingIdList[0] = roomStateList[room_id].teamAIdList[0];
-                roomStateList[room_id].participatingNameList[0] =roomStateList[room_id].teamANameList[0];
-                roomStateList[room_id].participatingIdList[2] = roomStateList[room_id].teamAIdList[1];
-                roomStateList[room_id].participatingNameList[2] =roomStateList[room_id].teamANameList[1];
+                roomStateList[room_id].participatingNameList[0] = roomStateList[room_id].teamANameList[0];
+                roomStateList[room_id].participatingIdList[1] = roomStateList[room_id].teamAIdList[1];
+                roomStateList[room_id].participatingNameList[1] = roomStateList[room_id].teamANameList[1];
                 
                 //teamB
-                roomStateList[room_id].participatingIdList[1] = roomStateList[room_id].teamBIdList[0];
-                roomStateList[room_id].participatingNameList[1] =roomStateList[room_id].teamBNameList[0];
+                roomStateList[room_id].participatingIdList[2] = roomStateList[room_id].teamBIdList[0];
+                roomStateList[room_id].participatingNameList[2] = roomStateList[room_id].teamBNameList[0];
                 roomStateList[room_id].participatingIdList[3] = roomStateList[room_id].teamBIdList[1];
-                roomStateList[room_id].participatingNameList[3] =roomStateList[room_id].teamBNameList[1];
+                roomStateList[room_id].participatingNameList[3] = roomStateList[room_id].teamBNameList[1];
+                
+                //console.log(roomStateList[room_id].participatingIdList);
+                //console.log(roomStateList[room_id].participatingNameList);
                 
                 setTopLeftPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[0]);
-                setTopRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[1]);
-                setDownLeftPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[2]);
-                setDownRightPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[3]);                
+                setTopRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[2]);
+                setDownLeftPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[3]);
+                setDownRightPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[1]);                
                 
                 break;
             default:
@@ -301,7 +304,12 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         
         
         setTimeout(() => {
-            bindDuringPlaySocket(io, socket, playerRoomList, roomStateList);
+            //bindDuringPlaySocket(io, socket, playerRoomList, roomStateList);
+            roomStateList[room_id].participatingIdList.forEach((id) => {
+                if (io.sockets.connected[id]) {
+                    io.sockets.connected[id].emit('bindKeys', {});
+                }
+            });
             io.sockets.in(room_id).emit('matchStart', {});
             matchStateList[room_id].match_timer = setTimeout(() => {
                 endMatch(io, socket, roomStateList, room_id, false, '');
@@ -310,6 +318,105 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         
     });
     // ----- socket.on askForMatchStart end ----- //
+    
+    
+    socket.on('askForMove', onAskForMove);
+    socket.on('askForSetBomb', onAskForSetBomb);
+
+    function onAskForMove(data) {
+        //console.log('onAskForMove');
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
+        
+        var room_id = playerRoomList[socket.id].room_id;
+        if (!isParticipants(socket, roomStateList, room_id)) { return false; }
+        
+        var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
+        var player = matchStateList[room_id].players[player_index];
+        if (player.isDead) { return false; }
+        
+        switch (data.direction) {
+            case 'up':
+                if (isMovable([0, -1], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].y -= MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
+                    matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
+                }
+                break;
+            case 'down':
+                if (isMovable([0, 1], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].y += MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
+                    matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
+                }
+                break;
+            case 'left':
+                if (isMovable([-1, 0], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].x -= MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
+                    matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
+                }
+                break;
+            case 'right':
+                if (isMovable([1, 0], room_id, player_index)) {
+                    matchStateList[room_id].players[player_index].x += MOVE_SPEED;
+                    matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
+                    matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
+                }
+                break;
+            default:
+                return false;
+        }
+        
+        io.sockets.in(room_id).emit('moveCharacter', {
+            player_index: player_index,
+            x: matchStateList[room_id].players[player_index].x,
+            y: matchStateList[room_id].players[player_index].y,
+            direction: data.direction
+        });
+
+    }
+
+    
+    function onAskForSetBomb(data) {
+        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
+        
+        var room_id = playerRoomList[socket.id].room_id;
+        if (!isParticipants(socket, roomStateList, room_id)) { return false; }
+        
+        var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
+        var player = matchStateList[room_id].players[player_index];
+        var bomb_id;
+        
+        if (player.isDead) { return false; }
+        if (player.bomb_num <= 0 ||
+            matchStateList[room_id].cellState[player.i][player.j].bomb_id !== null) {
+            return false;
+        } else {
+            bomb_id = matchStateList[room_id].bomb_count++;
+            matchStateList[room_id].bombs[bomb_id] = {
+                player_index: player_index,
+                color: player.color,
+                i: player.i,
+                j: player.j
+            };
+            matchStateList[room_id].cellState[player.i][player.j].bomb_id = bomb_id;
+            player.bomb_num--;
+            
+            io.sockets.in(room_id).emit('setBomb', {
+                bomb_id: bomb_id,
+                color: player.color,
+                i: player.i,
+                j: player.j
+            });
+            
+            matchStateList[room_id].bombs[bomb_id].timer = setTimeout(() => {
+                //console.log(room_id);
+                explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, false, 'dummy');
+
+            }, TIME_TO_EXPLODE);
+            
+        }
+    }
     
 }
 
@@ -419,111 +526,19 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
 }
 
 
+
+//TODO remove this bind/unbind pair
 //TODO remove socket event/failed to design modules...this doesnt work
+/*
 function unbindDuringPlaySocket(socket) {
     //socket.removeListener('askForMove', onAskForMove);
     //socket.removeListener('askForSetBomb', onAskForSetBomb);
 }
 
 function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
-    socket.on('askForMove', onAskForMove);
-    socket.on('askForSetBomb', onAskForSetBomb);
-
-    
-    function onAskForMove(data) {
-        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
-        
-        var room_id = playerRoomList[socket.id].room_id;
-        if (!isParticipants(socket, roomStateList, room_id)) { return false; }
-        
-        var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
-        var player = matchStateList[room_id].players[player_index];
-        if (player.isDead) { return false; }
-        
-        switch (data.direction) {
-            case 'up':
-                if (isMovable([0, -1], room_id, player_index)) {
-                    matchStateList[room_id].players[player_index].y -= MOVE_SPEED;
-                    matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
-                    matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
-                }
-                break;
-            case 'down':
-                if (isMovable([0, 1], room_id, player_index)) {
-                    matchStateList[room_id].players[player_index].y += MOVE_SPEED;
-                    matchStateList[room_id].players[player_index].j = Math.floor(matchStateList[room_id].players[player_index].y);
-                    matchStateList[room_id].players[player_index].x = matchStateList[room_id].players[player_index].i + 0.5;
-                }
-                break;
-            case 'left':
-                if (isMovable([-1, 0], room_id, player_index)) {
-                    matchStateList[room_id].players[player_index].x -= MOVE_SPEED;
-                    matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
-                    matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
-                }
-                break;
-            case 'right':
-                if (isMovable([1, 0], room_id, player_index)) {
-                    matchStateList[room_id].players[player_index].x += MOVE_SPEED;
-                    matchStateList[room_id].players[player_index].i = Math.floor(matchStateList[room_id].players[player_index].x);
-                    matchStateList[room_id].players[player_index].y = matchStateList[room_id].players[player_index].j + 0.5;
-                }
-                break;
-            default:
-                return false;
-        }
-        
-        io.sockets.in(room_id).emit('moveCharacter', {
-            player_index: player_index,
-            x: matchStateList[room_id].players[player_index].x,
-            y: matchStateList[room_id].players[player_index].y,
-            direction: data.direction
-        });
-
-    }
-
-    
-    function onAskForSetBomb(data) {
-        if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
-        
-        var room_id = playerRoomList[socket.id].room_id;
-        if (!isParticipants(socket, roomStateList, room_id)) { return false; }
-        
-        var player_index = roomStateList[room_id].participatingIdList.indexOf(socket.id);
-        var player = matchStateList[room_id].players[player_index];
-        var bomb_id;
-        
-        if (player.isDead) { return false; }
-        if (player.bomb_num <= 0 ||
-            matchStateList[room_id].cellState[player.i][player.j].bomb_id !== null) {
-            return false;
-        } else {
-            bomb_id = matchStateList[room_id].bomb_count++;
-            matchStateList[room_id].bombs[bomb_id] = {
-                player_index: player_index,
-                color: player.color,
-                i: player.i,
-                j: player.j
-            };
-            matchStateList[room_id].cellState[player.i][player.j].bomb_id = bomb_id;
-            player.bomb_num--;
-            
-            io.sockets.in(room_id).emit('setBomb', {
-                bomb_id: bomb_id,
-                color: player.color,
-                i: player.i,
-                j: player.j
-            });
-            
-            matchStateList[room_id].bombs[bomb_id].timer = setTimeout(() => {
-                //console.log(room_id);
-                explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, false, 'dummy');
-
-            }, TIME_TO_EXPLODE);
-            
-        }
-    }
 }
+*/
+
 
 function isParticipants(socket, roomStateList, room_id) {
     if (roomStateList[room_id].participatingIdList.indexOf(socket.id) < 0) {

@@ -54,19 +54,22 @@ function emitEnterChat(io, socket, room, roomStateList, player_name) {
     });
 }
 
-function emitLeaveRoom(io, socket, room, roomStateList, player_name) {
+function emitLeaveRoom(io, socket, room_id, roomStateList, player_name) {
     //send message to room member noticing someone leave
     var leave_message = { name: player_name, content: '退室しました' };
-    pushChatList(leave_message, room.id);
-    socket.broadcast.in(room.id).emit('someoneLeave', {
+    //console.log(leave_message + ' : ' + room_id);
+    pushChatList(leave_message, room_id);
+    socket.broadcast.in(room_id).emit('someoneLeave', {
         member_name: player_name,
-        memberList: roomStateList[room.id].memberList
+        memberList: roomStateList[room_id].memberList
     });
 }
 
 
 
 function pushChatList(message, room_id) {
+    // null exception TODO something
+    
     storedChatListMap[room_id].push(message);
     if (storedChatListMap[room_id].length > MAX_STORED_CHAT) {
         storedChatListMap[room_id].shift();

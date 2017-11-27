@@ -210,9 +210,12 @@ function setSocketEvent(socket) {
         
     });
     
+    socket.on('bindKeys', (data) => {
+        bindMatchEvent(socket);
+    });
+    
     socket.on('matchStart', (data) => {
         bindMatchSocketEvent(socket);
-        bindMatchEvent(socket);
         renderer = setInterval(renderField, ANIMATION_DT);
         
         let count = PLAY_TIMEsec;
@@ -262,6 +265,7 @@ function setSocketEvent(socket) {
 }
 
 function bindMatchEvent(socket) {
+    console.log('bindMatchEvent');
     $(window).on('keydown', onKeyDown);
     
     function onKeyDown(e) {
@@ -269,7 +273,7 @@ function bindMatchEvent(socket) {
             key = e.keyCode,
             direction = '';
         e.preventDefault();
-        //console.log('onkeydown');
+        console.log('onkeydown');
         switch (key) {
             case 37:
             case 65:
@@ -840,5 +844,6 @@ module.exports = {
     //setEventHandler: setEventHandler,
     roomMasterProcess: roomMasterProcess,
     //roomMemberProcess: roomMemberProcess,
-    unbindResizeEvent: unbindResizeEvent
+    unbindResizeEvent: unbindResizeEvent,
+    unbindMatchEvent: unbindMatchEvent
 };

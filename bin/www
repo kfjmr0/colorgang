@@ -213,12 +213,12 @@ io.on('connection', (socket) => {
     if (playerRoomList[socket.id]) {
       let room_id = playerRoomList[socket.id].room_id;
       let player_name = playerRoomList[socket.id].name;
-      if (roomStateList[room_id]) {
-        let room = roomStateList[room_id];
-        if (room.room_master === socket.id) {
+      if (roomMap[room_id] && roomStateList[room_id]) {
+        let roomState = roomStateList[room_id];
+        if (roomState.room_master === socket.id) {
           //TODO postprocess of disconnection of room master, disconnect all members and delete rooms
           roomStateList[room_id].memberIdList.forEach((id) => {
-            if (id !== room.room_master) {
+            if (id !== roomState.room_master) {
               io.sockets.connected[id].emit('enterTopPage', {
                 hasFailedToValidate: true,
                 roomMap: {},
@@ -238,12 +238,13 @@ io.on('connection', (socket) => {
         } else {
           // postprocess of disconnection of member (decrement user number in the room)
           // make chat and match send message and 
-          let member_index = room.memberIdList.indexOf(socket.id);
-          room.memberList.splice(member_index, 1);
-          room.memberIdList.splice(member_index, 1);
-          room.number -= 1;
+          let member_index = roomState.memberIdList.indexOf(socket.id);
+          roomState.memberList.splice(member_index, 1);
+          roomState.memberIdList.splice(member_index, 1);
+          roomMap[room_id].number -= 1;
           
-          chat_server.emitLeaveRoom(io, socket, room, roomStateList, player_name);
+          //console.log();
+          chat_server.emitLeaveRoom(io, socket, room_id, roomStateList, player_name);
           
           //TODO if he's in participating list and match hs not started remove his name from list
           //match_server.postprocessLeaveRoom(io, socket, room_id, roomStateList);

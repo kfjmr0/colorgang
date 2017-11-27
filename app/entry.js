@@ -37,6 +37,7 @@ socket.on('enterTopPage', (data) => {
     $chat_target.empty();
     $member_target.empty();
     match.unbindResizeEvent();
+    match.unbindMatchEvent();
     
     //console.log(data);
     if (data.hasFailedToValidate) {
