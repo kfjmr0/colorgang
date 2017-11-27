@@ -216,14 +216,19 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
     
     // ----- socket.on askForMatchStart start ----- //
     socket.on('askForMatchStart', (data) => {
+        console.log('on askForMatchStart');
         if (!common.isValidSocketId(io, socket, playerRoomList, roomStateList)) { return false; }
         
         var room_id = playerRoomList[socket.id].room_id;
         if (socket.id !== roomStateList[room_id].room_master || roomStateList[room_id].hasStarted) {
+            console.log('hes not room master or game has alredy started');
             return false;
         }
         
-        if (!isValidParticipantsNumber(room_id, roomStateList)) { return false; }
+        if (!isValidParticipantsNumber(room_id, roomStateList)) { 
+            console.log('participating number is illegal');
+            return false;
+        }
         
         matchStateList[room_id] = {
             players: [],
@@ -323,7 +328,7 @@ function isValidParticipantsNumber(room_id, roomStateList) {
                 return false;
             }
         case 'twoOnTwo':
-            if (roomStateList[room_id].teamAIdList === 2 && roomStateList[room_id].teamBIdList === 2) {
+            if (roomStateList[room_id].teamAIdList.length === 2 && roomStateList[room_id].teamBIdList.length === 2) {
                 return true;
             } else {
                 return false;
@@ -405,7 +410,7 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
         points: matchStateList[room_id].result_points
     });
     
-    emptyParticipatingList(roomStateList, room_id);
+    emptyParticipatingList(room_id, roomStateList);
     
     roomStateList[room_id].hasStarted = false;
     

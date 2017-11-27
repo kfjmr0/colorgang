@@ -123,6 +123,7 @@ io.on('connection', (socket) => {
   
   socket.on('makeRoom', (data) => {
     //TODO check room number bound and duplicate room name and illegal characters
+    //TODO emit illegal room or player name
     if (data && data.room_name && data.player_name) {
       if (typeof data.room_name !== "string") { return false; }
       if (typeof data.player_name !== "string") { return false; }
@@ -161,6 +162,10 @@ io.on('connection', (socket) => {
       battle_mode: 'fourMen',
       participatingIdList: [],
       participatingNameList: [],
+      teamAIdList: [],
+      teamANameList: [],
+      teamBIdList: [],
+      teamBNameList: [],
       hasStarted: false
     };
     chat_server.createChatStorage(room_id);
@@ -258,6 +263,7 @@ io.on('connection', (socket) => {
 function joinRoom(socket, room, player_name) {
   if (roomStateList[room.id]) {
     //TODO check player number bound and not exist same name
+    //TODO emit illegalPlayerName
     if (roomStateList[room.id].memberList.length >= 10) { return false; }
     let existsSamePlayerName = false;
     roomStateList[room.id].memberList.forEach((member_name) => {
