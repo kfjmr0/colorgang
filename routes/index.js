@@ -3,7 +3,12 @@ var express = require('express');
 var router = express.Router();
 
 router.get('/', (req, res, next) => {
-    res.render('index', {});
+    if (express().get('env') === 'development') {
+        var url = 'https://node-study-kfjmr0.c9users.io:8080/';
+    } else {
+        var url = 'https://node-study-kfjmr0.c9users.io:8080/';
+    }
+    res.render('index', {url: url});
 });
 
 router.get('/howTo', (req, res, next) => {

@@ -25,5 +25,6 @@ function redirectTopPage(socket) {
 }
 
 module.exports = {
-    isValidSocketId: isValidSocketId
+    isValidSocketId: isValidSocketId,
+    redirectTopPage: redirectTopPage
 };

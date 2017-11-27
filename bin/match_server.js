@@ -884,7 +884,7 @@ function createShuffledArray(array) {
     return new_array;
 }
 
-function postprocessLeaveRoom(io, socket, room_id, roomStateList, playerRoomList) {
+function postprocessMemberLeaveRoom(io, socket, room_id, roomStateList, playerRoomList) {
     var room_id = playerRoomList[socket.id].room_id;
     if (roomStateList[room_id].hasStarted) { return false; }
     var battle_mode = roomStateList[room_id].battle_mode;
@@ -935,9 +935,16 @@ function postprocessLeaveRoom(io, socket, room_id, roomStateList, playerRoomList
     }
 }
 
+function postprocessRoomMasterLeaveRoom(io, socket, room_id, roomStateList, playerRoomList) {
+    if (roomStateList[room_id].hasStarted) {
+        clearTimeout(matchStateList[room_id].match_timer);
+        delete matchStateList[room_id];
+    }
+}
 
 module.exports = {
     setSocket: setSocket,
     emitEnterMatch: emitEnterMatch,
-    postprocessLeaveRoom: postprocessLeaveRoom
+    postprocessMemberLeaveRoom: postprocessMemberLeaveRoom,
+    postprocessRoomMasterLeaveRoom: postprocessRoomMasterLeaveRoom
 };

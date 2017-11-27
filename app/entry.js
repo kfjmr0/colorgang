@@ -2,10 +2,10 @@
 const $ = require('jquery');
 const util = require('./utility');
 
-//TODO : replace url
-const URL = 'https://node-study-kfjmr0.c9users.io:8080/';
-//const URL = '';
-const socket = require('socket.io-client')(URL);//, {'sync disconnect on unload': true });
+//const URL = 'https://node-study-kfjmr0.c9users.io:8080/';
+const url = $('#url-data').data('url');
+const socket = require('socket.io-client')(url);//, {'sync disconnect on unload': true });
+
 const chat = require('./chat');
 const match = require('./match');
 
@@ -55,6 +55,7 @@ socket.on('enterTopPage', (data) => {
         });
     }
     
+    $top.append('<div>アクセス中の人数:' + data.connected_number + '</div>');
     $top.append('<div>ロードアベレージ:' + data.loadavg + '</div>');
     $top.append('<div>メモリ使用率:' + data.memory_utilization + '</div>');
     

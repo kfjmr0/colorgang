@@ -104,15 +104,19 @@ const common = require('./common');
 var roomMap = {}; // room map for rendering top page's room list
 var playerRoomList = []; // player's socket.id vs {joined room id and name}
 var roomStateList = []; // room id vs that {room's state}
+var connectCounter = 0;
 
 io.on('connection', (socket) => {
   //console.log('user entered.');
   var loadavg = os.loadavg();
   var memory_utilization = 1.0 - os.freemem() / os.totalmem();
-  
+  connectCounter++;
+  //socket.on('connect', function() { connectCounter++; });
+
   socket.emit('enterTopPage', {
     hasFailedToValidate: false,
     roomMap: roomMap,
+    connected_number: connectCounter,
     loadavg: loadavg.toString(),
     memory_utilization: memory_utilization
   });
@@ -175,6 +179,7 @@ io.on('connection', (socket) => {
       console.log('room data is null');
       return false;
     } else if (!roomMap[data.room_id]) {
+      common.redirectTopPage(socket);
       console.log('room does not exist in roomMap for room id :' + data.room_id);
       return false;
     }
@@ -196,8 +201,9 @@ io.on('connection', (socket) => {
   
   
   socket.on('disconnect', () => {
-    //console.log('user disconnected');
+    console.log('user disconnected');
     //console.log(playerRoomList);
+    connectCounter--;
     
     if (playerRoomList[socket.id]) {
       let room_id = playerRoomList[socket.id].room_id;
@@ -207,10 +213,23 @@ io.on('connection', (socket) => {
         if (room.room_master === socket.id) {
           //TODO postprocess of disconnection of room master, disconnect all members and delete rooms
           roomStateList[room_id].memberIdList.forEach((id) => {
-            io.sockets.connected[id].disconnect();
+            if (id !== room.room_master) {
+              io.sockets.connected[id].emit('enterTopPage', {
+                hasFailedToValidate: true,
+                roomMap: {},
+                loadavg: '',
+                memory_utilization: ''
+              });
+            }
             delete playerRoomList[id];
           });
+          
+          chat_server.deleteChatStorage(room_id);
+          match_server.postprocessRoomMasterLeaveRoom(io, socket, room_id, roomStateList, playerRoomList);
           delete roomStateList[room_id];
+          delete roomMap[room_id];
+
+          
         } else {
           // postprocess of disconnection of member (decrement user number in the room)
           // make chat and match send message and 
@@ -218,12 +237,13 @@ io.on('connection', (socket) => {
           room.memberList.splice(member_index, 1);
           room.memberIdList.splice(member_index, 1);
           room.number -= 1;
+          
           chat_server.emitLeaveRoom(io, socket, room, roomStateList, player_name);
           
-          //TODO if he's in participating list ...
+          //TODO if he's in participating list and match hs not started remove his name from list
           //match_server.postprocessLeaveRoom(io, socket, room_id, roomStateList);
-          // hasStarted kadouka?
-          match_server.postprocessLeaveRoom(io, socket, room_id, roomStateList, playerRoomList);
+          match_server.postprocessMemberLeaveRoom(io, socket, room_id, roomStateList, playerRoomList);
+          
           delete playerRoomList[socket.id];
         }
       }

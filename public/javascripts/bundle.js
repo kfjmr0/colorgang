@@ -14195,6 +14195,7 @@ function setJoinEvent(socket) {
             $('#team-selector-form').remove();
         }
     }
+    // prevent binding multi event
     $('#participate-join-button').off('click');
     $('#participate-join-button').click(() => {
         //console.log('join-button clicked');
@@ -14318,22 +14319,36 @@ function setSocketEvent(socket) {
         clearTimeout(renderer);
         unbindMatchEvent();
         
-        //TODO render result
-        console.log('match end');
-        console.log(data);
+        //console.log('match end');
+        //console.log(data);
         if (data.hasWonByKill) {
             $('#match-messagebox').text(data.result_message);
         } else {
-            $('#match-messagebox').text(data.result_message);
-            
-            
-            
-            
+            switch (data.battle_mode) {
+                    case 'fourMen':
+                        data.points.forEach((point, index) => {
+                            $('#match-messagebox').append('<span style="color:' + COLOR_LIST[index] + '";">' + util.escapeHTML(point) + '　</span>');
+                        });
+                        $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
+                        break;
+                    case 'oneOnOne':
+                    case 'twoOnTwo':
+                        $('#match-messagebox').append('<span style="color:' + COLOR_LIST[0] + '";">' + util.escapeHTML(data.points[0]) + '　</span>');
+                        $('#match-messagebox').append('<span style="color:' + COLOR_LIST[1] + '";">' + util.escapeHTML(data.points[1]) + '　</span>');
+                        $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
+                        break;
+                    default:
+                        return false;
+            }
         }
         
-        //TODO restore button state
+
         
-        
+        // restore button state
+        $('#match-start-button').prop("disabled", false);
+        $('#participate-join-button').prop("disabled", false);
+        $('#participate-cancel-button').prop("disabled", false);
+        setJoinEvent(socket);
     });
 }
 
@@ -14573,7 +14588,7 @@ function renderCurrentParticipants(data) {
                 break;
             default:
                 return false;
-        }
+    }
 }
 
 
@@ -15028,10 +15043,10 @@ exports.Socket = __webpack_require__(22);
 const $ = __webpack_require__(3);
 const util = __webpack_require__(8);
 
-//TODO : replace url
-const URL = 'https://node-study-kfjmr0.c9users.io:8080/';
-//const URL = '';
-const socket = __webpack_require__(27)(URL);//, {'sync disconnect on unload': true });
+//const URL = 'https://node-study-kfjmr0.c9users.io:8080/';
+const url = $('#url-data').data('url');
+const socket = __webpack_require__(27)(url);//, {'sync disconnect on unload': true });
+
 const chat = __webpack_require__(25);
 const match = __webpack_require__(26);
 
@@ -15081,6 +15096,7 @@ socket.on('enterTopPage', (data) => {
         });
     }
     
+    $top.append('<div>アクセス中の人数:' + data.connected_number + '</div>');
     $top.append('<div>ロードアベレージ:' + data.loadavg + '</div>');
     $top.append('<div>メモリ使用率:' + data.memory_utilization + '</div>');
     

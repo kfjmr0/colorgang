@@ -34,6 +34,10 @@ function createChatStorage(room_id) {
     storedChatListMap[room_id] = [];
 }
 
+function deleteChatStorage(room_id) {
+    delete storedChatListMap[room_id];
+}
+
 function emitEnterChat(io, socket, room, roomStateList, player_name) {
     //send room member list and stored chat to new comer
     var enter_message = { name: player_name, content: '入室しました' };
@@ -72,6 +76,7 @@ function pushChatList(message, room_id) {
 module.exports = {
     setSocket: setSocket,
     createChatStorage: createChatStorage,
+    deleteChatStorage: deleteChatStorage,
     emitEnterChat: emitEnterChat,
     emitLeaveRoom: emitLeaveRoom
 };
