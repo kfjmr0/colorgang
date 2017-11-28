@@ -455,14 +455,17 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     } else {
         //count points
         matchStateList[room_id].result_points = [0, 0, 0, 0];
-        matchStateList[room_id].cellState.forEach((columns) => {
-            columns.forEach((cell) => {
-                if (cell.color === STATE.first_color || cell.color === STATE.second_color
-                    || cell.color === STATE.third_color || cell.color === STATE.forth_color) {
-                        matchStateList[room_id].result_points[cell.color]++;
+        for (let i = 0; i < H_CELL_NUM; i++) {
+            for (let j = 0; j < V_CELL_NUM; j++) {
+                let cell_color = matchStateList[room_id].cellState[i][j].color;
+                if (cell_color === STATE.first_color || cell_color === STATE.second_color
+                    || cell_color === STATE.third_color || cell_color === STATE.forth_color) {
+                        matchStateList[room_id].result_points[cell_color] += 1;
                 }
-            });
-        });
+                //console.log(cell_color);
+                //console.log(matchStateList[room_id].result_points);
+            }
+        }
         
         switch (roomStateList[room_id].battle_mode) {
             case 'fourMen':
@@ -530,19 +533,6 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     delete matchStateList[room_id];
 }
 
-
-
-//TODO remove this bind/unbind pair
-//TODO remove socket event/failed to design modules...this doesnt work
-/*
-function unbindDuringPlaySocket(socket) {
-    //socket.removeListener('askForMove', onAskForMove);
-    //socket.removeListener('askForSetBomb', onAskForSetBomb);
-}
-
-function bindDuringPlaySocket(io, socket, playerRoomList, roomStateList) {
-}
-*/
 
 
 function isParticipants(socket, roomStateList, room_id) {
@@ -645,10 +635,18 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
     
     //evaluate enclosed cells and emit those
     evaluateEnclosure(paintedCells, room_id);
+    
     //console.log('haaa?' + matchStateList[room_id].obtainedCells);
     Object.keys(matchStateList[room_id].obtainedCells).forEach((color) => {
         //console.log(matchStateList[room_id].obtainedCells[color]);
         if (matchStateList[room_id].obtainedCells[color].length > 0) {
+            matchStateList[room_id].obtainedCells[color].forEach((enclosedCells) => {
+                enclosedCells.forEach((position) => {
+                    // keys from object is string type??
+                    matchStateList[room_id].cellState[position[0]][position[1]].color = parseInt(color, 10);
+                });
+            });
+            
             io.sockets.in(room_id).emit('cellsObtained', {
                 color: color,
                 obtainedCells: matchStateList[room_id].obtainedCells[color]
