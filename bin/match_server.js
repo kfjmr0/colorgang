@@ -252,25 +252,29 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
                 setDownRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[1]);
                 break;
             case 'twoOnTwo':
-                //teamA
+                //teamA number one/top left
                 roomStateList[room_id].participatingIdList[0] = roomStateList[room_id].teamAIdList[0];
                 roomStateList[room_id].participatingNameList[0] = roomStateList[room_id].teamANameList[0];
-                roomStateList[room_id].participatingIdList[1] = roomStateList[room_id].teamAIdList[1];
-                roomStateList[room_id].participatingNameList[1] = roomStateList[room_id].teamANameList[1];
                 
-                //teamB
-                roomStateList[room_id].participatingIdList[2] = roomStateList[room_id].teamBIdList[0];
-                roomStateList[room_id].participatingNameList[2] = roomStateList[room_id].teamBNameList[0];
-                roomStateList[room_id].participatingIdList[3] = roomStateList[room_id].teamBIdList[1];
-                roomStateList[room_id].participatingNameList[3] = roomStateList[room_id].teamBNameList[1];
+                //teamB number one/top right
+                roomStateList[room_id].participatingIdList[1] = roomStateList[room_id].teamBIdList[0];
+                roomStateList[room_id].participatingNameList[1] = roomStateList[room_id].teamBNameList[0];
+                
+                //teamB number two/down left
+                roomStateList[room_id].participatingIdList[2] = roomStateList[room_id].teamBIdList[1];
+                roomStateList[room_id].participatingNameList[2] = roomStateList[room_id].teamBNameList[1];
+                
+                //teamA number two/down right
+                roomStateList[room_id].participatingIdList[3] = roomStateList[room_id].teamAIdList[1];
+                roomStateList[room_id].participatingNameList[3] = roomStateList[room_id].teamANameList[1];
                 
                 //console.log(roomStateList[room_id].participatingIdList);
                 //console.log(roomStateList[room_id].participatingNameList);
                 
                 setTopLeftPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[0]);
-                setTopRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[2]);
-                setDownLeftPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[3]);
-                setDownRightPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[1]);                
+                setTopRightPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[1]);
+                setDownLeftPerson(matchStateList[room_id].players, STATE.second_color, roomStateList[room_id].participatingNameList[2]);
+                setDownRightPerson(matchStateList[room_id].players, STATE.first_color, roomStateList[room_id].participatingNameList[3]);
                 
                 break;
             default:
@@ -702,11 +706,11 @@ function judgeWhetherEndMatch(io, socket, room_id, roomStateList) {
         case 'twoOnTwo':
             let teamAnumber = 0;
             let teamBnumber = 0;
-            matchStateList[room_id].players.forEach((player, index) => {
+            matchStateList[room_id].players.forEach((player) => {
                 if (!player.isDead) {
-                    if (roomStateList[room_id].teamAIdList.indexOf(roomStateList[room_id].participatingIdList[index]) >= 0) {
+                    if (player.color === STATE.first_color) {
                         teamAnumber++;
-                    } else if (roomStateList[room_id].teamBIdList.indexOf(roomStateList[room_id].participatingIdList[index]) >= 0) {
+                    } else if (player.color === STATE.second_color) {
                         teamBnumber++;
                     }
                 }

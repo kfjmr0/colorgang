@@ -68,8 +68,9 @@ function emitLeaveRoom(io, socket, room_id, roomStateList, player_name) {
 
 
 function pushChatList(message, room_id) {
-    // null exception TODO something
-    
+    if (!storedChatListMap[room_id]) {
+        return false;
+    }
     storedChatListMap[room_id].push(message);
     if (storedChatListMap[room_id].length > MAX_STORED_CHAT) {
         storedChatListMap[room_id].shift();
