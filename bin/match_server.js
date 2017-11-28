@@ -55,10 +55,6 @@ function emitEnterMatch(io, socket, room, roomStateList, playerRoomList) {
             return false;
     }
     
-
-    
-    
-    
     if (isDev) {
         roomStateList[room.id].participatingIdList = dummyIdList;
         roomStateList[room.id].participatingNameList = dummyNameList;
@@ -474,6 +470,7 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
             if (val === max) {
                 max_point_winners.push(matchStateList[room_id].players[index].name);
             } else if (val > max) {
+                max = val;
                 max_point_winners = [];
                 max_point_winners.push(matchStateList[room_id].players[index].name);
             }

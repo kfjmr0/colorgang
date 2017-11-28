@@ -245,7 +245,7 @@ function setSocketEvent(socket) {
         if (data.hasWonByKill) {
             $('#match-messagebox').text(data.result_message);
         } else {
-            switch (data.battle_mode) {
+            switch (battle_mode) {
                     case 'fourMen':
                         data.points.forEach((point, index) => {
                             $('#match-messagebox').append('<span style="color:' + COLOR_LIST[index] + '";">' + util.escapeHTML(point) + '　</span>');
@@ -259,7 +259,7 @@ function setSocketEvent(socket) {
                         $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
                         break;
                     default:
-                        return false;
+                        break;
             }
         }
         
