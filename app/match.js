@@ -71,7 +71,7 @@ const team_selector_html = '<form id="team-selector-form" class="form-horizontal
 function init(socket) {
     isRoomMaster = false;
     setFieldSizeAndGetCanvas($match);
-    
+    emptyVariables();
 }
 
 function emptyVariables() {

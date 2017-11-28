@@ -14162,6 +14162,14 @@ const team_selector_html = '<form id="team-selector-form" class="form-horizontal
 function init(socket) {
     isRoomMaster = false;
     setFieldSizeAndGetCanvas($match);
+    
+}
+
+function emptyVariables() {
+    var COLOR_LIST = [];
+    var players = [];
+    var cellStates = [];
+    var bombs = {};
 }
 
 function setEventHandler(socket) {
@@ -14319,8 +14327,8 @@ function setSocketEvent(socket) {
     });
     
     socket.on('matchEnd', (data) => {
-        clearTimeout(countdownTimer);
-        clearTimeout(renderer);
+        clearInterval(countdownTimer);
+        clearInterval(renderer);
         unbindMatchEvent();
         
         console.log('match end');
@@ -14352,18 +14360,13 @@ function setSocketEvent(socket) {
         $('#participate-cancel-button').prop("disabled", false);
         setJoinEvent(socket);
         
-        
-        // empty variables
-        var COLOR_LIST = [];
-        var players = [];
-        var cellStates = [];
-        var bombs = {};
+        emptyVariables();
         
     });
 }
 
 function bindMatchEvent(socket) {
-    console.log('bindMatchEvent');
+    //console.log('bindMatchEvent');
     $(window).on('keydown', onKeyDown);
     
     function onKeyDown(e) {
@@ -14371,7 +14374,7 @@ function bindMatchEvent(socket) {
             key = e.keyCode,
             direction = '';
         e.preventDefault();
-        console.log('onkeydown');
+        //console.log('onkeydown');
         switch (key) {
             case 37:
             case 65:
