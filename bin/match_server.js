@@ -966,7 +966,7 @@ function postprocessRoomMasterLeaveRoom(io, socket, room_id, roomStateList, play
     if (roomStateList[room_id].hasStarted) {
         clearTimeout(matchStateList[room_id].match_timer);
         
-        Object(matchStateList[room_id].bombs).keys.forEach((id) => {
+        Object.keys(matchStateList[room_id].bombs).forEach((id) => {
             if (matchStateList[room_id].bomb_count[id]) {
                 clearTimeout(matchStateList[room_id].bombs[id].timer);
             }
