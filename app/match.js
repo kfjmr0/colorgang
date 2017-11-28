@@ -7,7 +7,7 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
-const PLAY_TIMEsec = 2*60;
+const PLAY_TIMEsec = 15;//2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
 const STATE = {
     first_color: 0,
@@ -238,6 +238,7 @@ function setSocketEvent(socket) {
     socket.on('matchEnd', (data) => {
         clearInterval(countdownTimer);
         clearInterval(renderer);
+        $('#match-messagebox').empty();
         unbindMatchEvent();
         
         console.log('match end');
@@ -267,6 +268,8 @@ function setSocketEvent(socket) {
         $('#match-start-button').prop("disabled", false);
         $('#participate-join-button').prop("disabled", false);
         $('#participate-cancel-button').prop("disabled", false);
+        
+        $('#participate-button').html(participate_join_html);
         setJoinEvent(socket);
         
         emptyVariables();

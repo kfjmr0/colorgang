@@ -14098,7 +14098,7 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
-const PLAY_TIMEsec = 2*60;
+const PLAY_TIMEsec = 15;//2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
 const STATE = {
     first_color: 0,
@@ -14329,6 +14329,7 @@ function setSocketEvent(socket) {
     socket.on('matchEnd', (data) => {
         clearInterval(countdownTimer);
         clearInterval(renderer);
+        $('#match-messagebox').empty();
         unbindMatchEvent();
         
         console.log('match end');
@@ -14336,7 +14337,7 @@ function setSocketEvent(socket) {
         if (data.hasWonByKill) {
             $('#match-messagebox').text(data.result_message);
         } else {
-            switch (data.battle_mode) {
+            switch (battle_mode) {
                     case 'fourMen':
                         data.points.forEach((point, index) => {
                             $('#match-messagebox').append('<span style="color:' + COLOR_LIST[index] + '";">' + util.escapeHTML(point) + '　</span>');
@@ -14350,7 +14351,7 @@ function setSocketEvent(socket) {
                         $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
                         break;
                     default:
-                        return false;
+                        break;
             }
         }
         
@@ -14358,6 +14359,8 @@ function setSocketEvent(socket) {
         $('#match-start-button').prop("disabled", false);
         $('#participate-join-button').prop("disabled", false);
         $('#participate-cancel-button').prop("disabled", false);
+        
+        $('#participate-button').html(participate_join_html);
         setJoinEvent(socket);
         
         emptyVariables();

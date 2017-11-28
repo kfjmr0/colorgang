@@ -7,7 +7,7 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const MOVE_SPEED = 1.0 / 3.0;
 const TIME_TO_EXPLODE = 3000;
-const PLAY_TIMEsec = 2 * 60;
+const PLAY_TIMEsec = 15;//2 * 60;
 
 const COLOR_LIST = ['deeppink', 'mediumblue', 'lime', 'orange'];
 const STATE = {
@@ -523,6 +523,12 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     roomStateList[room_id].hasStarted = false;
     
     //delete match related objects
+    Object(matchStateList[room_id].bombs).keys.forEach((id) => {
+        if (matchStateList[room_id].bomb_count[id]) {
+            clearTimeout(matchStateList[room_id].bombs[id].timer);
+        }
+    });
+    
     delete matchStateList[room_id];
 }
 
@@ -959,8 +965,15 @@ function postprocessMemberLeaveRoom(io, socket, room_id, roomStateList, playerRo
 function postprocessRoomMasterLeaveRoom(io, socket, room_id, roomStateList, playerRoomList) {
     if (roomStateList[room_id].hasStarted) {
         clearTimeout(matchStateList[room_id].match_timer);
-        delete matchStateList[room_id];
+        
+        Object(matchStateList[room_id].bombs).keys.forEach((id) => {
+            if (matchStateList[room_id].bomb_count[id]) {
+                clearTimeout(matchStateList[room_id].bombs[id].timer);
+            }
+        });
     }
+    
+    delete matchStateList[room_id];
 }
 
 module.exports = {
