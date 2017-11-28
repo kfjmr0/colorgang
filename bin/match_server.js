@@ -464,21 +464,20 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
             });
         });
         
-        let max = 0;
-        let max_point_winners = [];
-        matchStateList[room_id].result_points.forEach((val, index) => {
-            if (val === max) {
-                max_point_winners.push(matchStateList[room_id].players[index].name);
-            } else if (val > max) {
-                max = val;
-                max_point_winners = [];
-                max_point_winners.push(matchStateList[room_id].players[index].name);
-            }
-        });
-        
-        
         switch (roomStateList[room_id].battle_mode) {
             case 'fourMen':
+                let max = 0;
+                let max_point_winners = [];
+                matchStateList[room_id].result_points.forEach((val, index) => {
+                    if (val === max) {
+                        max_point_winners.push(matchStateList[room_id].players[index].name);
+                    } else if (val > max) {
+                        max = val;
+                        max_point_winners = [];
+                        max_point_winners.push(matchStateList[room_id].players[index].name);
+                    }
+                });
+                
                 if (max_point_winners.length === 4) {
                     result_message = 'Draw !';
                 } else {
@@ -489,13 +488,12 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
                 }
                 break;
             case 'oneOnOne':
-                if (max_point_winners.length === 2) {
+                if (matchStateList[room_id].result_points[0] === matchStateList[room_id].result_points[1]) {
                     result_message = 'Draw !';
+                } else if (matchStateList[room_id].result_points[0] > matchStateList[room_id].result_points[1]) {
+                    result_message += matchStateList[room_id].players[0].name + ' Win !';
                 } else {
-                    max_point_winners.forEach((name, index) => {
-                        result_message += name + ' '; 
-                    });
-                    result_message += ' Win !';
+                    result_message += matchStateList[room_id].players[1].name + ' Win !';
                 }
                 break;
             case 'twoOnTwo':
@@ -523,7 +521,7 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     roomStateList[room_id].hasStarted = false;
     
     //delete match related objects
-    Object(matchStateList[room_id].bombs).keys.forEach((id) => {
+    Object.keys(matchStateList[room_id].bombs).forEach((id) => {
         if (matchStateList[room_id].bomb_count[id]) {
             clearTimeout(matchStateList[room_id].bombs[id].timer);
         }
