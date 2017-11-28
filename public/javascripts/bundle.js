@@ -14100,7 +14100,6 @@ const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
 const PLAY_TIMEsec = 2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
-var COLOR_LIST = [];//['deeppink', 'mediumblue', 'lime', 'orange', 'gray'];
 const STATE = {
     first_color: 0,
     second_color: 1,
@@ -14119,8 +14118,9 @@ var renderer;
 var countdownTimer;
 
 var battle_mode;
-var isRoomMaster = false;
+var isRoomMaster;
 
+var COLOR_LIST = [];//['deeppink', 'mediumblue', 'lime', 'orange', 'gray'];
 var players = [];
 var cellStates = [];
 var bombs = {};
@@ -14160,6 +14160,7 @@ const team_selector_html = '<form id="team-selector-form" class="form-horizontal
 
 
 function init(socket) {
+    isRoomMaster = false;
     setFieldSizeAndGetCanvas($match);
 }
 
@@ -14322,8 +14323,8 @@ function setSocketEvent(socket) {
         clearTimeout(renderer);
         unbindMatchEvent();
         
-        //console.log('match end');
-        //console.log(data);
+        console.log('match end');
+        console.log(data);
         if (data.hasWonByKill) {
             $('#match-messagebox').text(data.result_message);
         } else {
@@ -14345,13 +14346,19 @@ function setSocketEvent(socket) {
             }
         }
         
-
-        
         // restore button state
         $('#match-start-button').prop("disabled", false);
         $('#participate-join-button').prop("disabled", false);
         $('#participate-cancel-button').prop("disabled", false);
         setJoinEvent(socket);
+        
+        
+        // empty variables
+        var COLOR_LIST = [];
+        var players = [];
+        var cellStates = [];
+        var bombs = {};
+        
     });
 }
 
@@ -14932,9 +14939,7 @@ function drawDeadMansFace(x, y) {
 module.exports = {
     init: init,
     setSocketEvent: setSocketEvent,
-    //setEventHandler: setEventHandler,
     roomMasterProcess: roomMasterProcess,
-    //roomMemberProcess: roomMemberProcess,
     unbindResizeEvent: unbindResizeEvent,
     unbindMatchEvent: unbindMatchEvent
 };
