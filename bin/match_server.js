@@ -452,6 +452,13 @@ function isValidParticipantsNumber(room_id, roomStateList) {
 
 function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     clearTimeout(matchStateList[room_id].match_timer);
+    // stop bombs timer
+    Object.keys(matchStateList[room_id].bombs).forEach((id) => {
+        if (matchStateList[room_id].bombs[id]) {
+            clearTimeout(matchStateList[room_id].bombs[id].timer);
+        }
+    });
+    
     let result_message = '';
     if (hasWonByKill) {
         result_message = message;
@@ -516,12 +523,7 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
         }
     }
     
-    // stop bombs timer
-    Object.keys(matchStateList[room_id].bombs).forEach((id) => {
-        if (matchStateList[room_id].bombs[id]) {
-            clearTimeout(matchStateList[room_id].bombs[id].timer);
-        }
-    });
+
 
     io.sockets.in(room_id).emit('matchEnd', {
         hasWonByKill: hasWonByKill,
@@ -956,13 +958,15 @@ function postprocessMemberLeaveRoom(io, socket, room_id, roomStateList, playerRo
 
 function postprocessRoomMasterLeaveRoom(io, socket, room_id, roomStateList, playerRoomList) {
     if (roomStateList[room_id].hasStarted) {
-        clearTimeout(matchStateList[room_id].match_timer);
-        
-        Object.keys(matchStateList[room_id].bombs).forEach((id) => {
-            if (matchStateList[room_id].bomb_count[id]) {
-                clearTimeout(matchStateList[room_id].bombs[id].timer);
-            }
-        });
+        if (matchStateList[room_id]) {
+            clearTimeout(matchStateList[room_id].match_timer);
+            
+            Object.keys(matchStateList[room_id].bombs).forEach((id) => {
+                if (matchStateList[room_id].bombs[id]) {
+                    clearTimeout(matchStateList[room_id].bombs[id].timer);
+                }
+            });
+        }
     }
     
     delete matchStateList[room_id];
