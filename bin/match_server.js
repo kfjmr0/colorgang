@@ -516,6 +516,13 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
         }
     }
     
+    // stop bombs timer
+    Object.keys(matchStateList[room_id].bombs).forEach((id) => {
+        if (matchStateList[room_id].bombs[id]) {
+            clearTimeout(matchStateList[room_id].bombs[id].timer);
+        }
+    });
+
     io.sockets.in(room_id).emit('matchEnd', {
         hasWonByKill: hasWonByKill,
         result_message: result_message,
@@ -527,13 +534,8 @@ function endMatch(io, socket, roomStateList, room_id, hasWonByKill, message) {
     roomStateList[room_id].hasStarted = false;
     
     //delete match related objects
-    Object.keys(matchStateList[room_id].bombs).forEach((id) => {
-        if (matchStateList[room_id].bomb_count[id]) {
-            clearTimeout(matchStateList[room_id].bombs[id].timer);
-        }
-    });
-    
     delete matchStateList[room_id];
+    
 }
 
 
@@ -661,10 +663,11 @@ function explodeBomb(io, socket, roomStateList, room_id, player, bomb_id, isTrig
     //delete bomb object
     delete matchStateList[room_id].bombs[bomb_id];
     
-    // end match if the only one person or team is left, or no one is left
-    setTimeout(() => {
+    // judge after a series of explosion
+    if (!isTriggeredByOther) {
+        // end match if the only one person or team is left, or no one is left
         judgeWhetherEndMatch(io, socket, room_id, roomStateList);
-    }, 500);
+    }
     
 }
 
@@ -680,6 +683,7 @@ function killPersonIn(ni, nj, io, socket, room_id, roomStateList) {
             if (roomStateList[room_id].participatingIdList[index]) {
                 io.sockets.connected[roomStateList[room_id].participatingIdList[index]].emit('youDied', {});
             }
+            
         }
     });
 

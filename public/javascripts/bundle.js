@@ -14017,45 +14017,47 @@ function setSocketEvent(socket) {
     });
     
     socket.on('matchEnd', (data) => {
-        clearInterval(countdownTimer);
-        clearInterval(renderer);
-        $('#match-messagebox').empty();
-        unbindMatchEvent();
-        
-        //console.log('match end');
-        //console.log(data);
-        if (data.hasWonByKill) {
-            $('#match-messagebox').text(data.result_message);
-        } else {
-            switch (battle_mode) {
-                    case 'fourMen':
-                        data.points.forEach((point, index) => {
-                            $('#match-messagebox').append('<span style="color:' + COLOR_LIST[index] + '";">' + util.escapeHTML(point) + '　</span>');
-                        });
-                        $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
-                        break;
-                    case 'oneOnOne':
-                    case 'twoOnTwo':
-                        $('#match-messagebox').append('<span style="color:' + COLOR_LIST[0] + '";">' + util.escapeHTML(data.points[0]) + '　</span>');
-                        $('#match-messagebox').append('<span style="color:' + COLOR_LIST[1] + '";">' + util.escapeHTML(data.points[1]) + '　</span>');
-                        $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
-                        break;
-                    default:
-                        break;
+        // time for players to be mentally prepared for result
+        setTimeout(() => {
+            clearInterval(countdownTimer);
+            clearInterval(renderer);
+            $('#match-messagebox').empty();
+            unbindMatchEvent();
+            
+            //console.log('match end');
+            //console.log(data);
+            if (data.hasWonByKill) {
+                $('#match-messagebox').text(data.result_message);
+            } else {
+                switch (battle_mode) {
+                        case 'fourMen':
+                            data.points.forEach((point, index) => {
+                                $('#match-messagebox').append('<span style="color:' + COLOR_LIST[index] + '";">' + util.escapeHTML(point) + '　</span>');
+                            });
+                            $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
+                            break;
+                        case 'oneOnOne':
+                        case 'twoOnTwo':
+                            $('#match-messagebox').append('<span style="color:' + COLOR_LIST[0] + '";">' + util.escapeHTML(data.points[0]) + '　</span>');
+                            $('#match-messagebox').append('<span style="color:' + COLOR_LIST[1] + '";">' + util.escapeHTML(data.points[1]) + '　</span>');
+                            $('#match-messagebox').append('<span>' + util.escapeHTML(data.result_message) + '</span>');
+                            break;
+                        default:
+                            break;
+                }
             }
-        }
-        
-        // restore button state
-        $('#match-start-button').prop("disabled", false);
-        $('#participate-join-button').prop("disabled", false);
-        $('#participate-cancel-button').prop("disabled", false);
-        
-        $('#participate-button').html(participate_join_html);
-        setJoinEvent(socket);
-        
-        $('#participants-list').empty();
-        emptyVariables();
-        
+            
+            // restore button state
+            $('#match-start-button').prop("disabled", false);
+            $('#participate-join-button').prop("disabled", false);
+            $('#participate-cancel-button').prop("disabled", false);
+            
+            $('#participate-button').html(participate_join_html);
+            setJoinEvent(socket);
+            
+            $('#participants-list').empty();
+            emptyVariables();
+        }, 500);
     });
 }
 
