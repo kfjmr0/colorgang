@@ -13,7 +13,7 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
         var name = playerRoomList[socket.id].name;
         var content;
         if (!data.content || typeof data.content !== "string") {
-            console.log('content does not exist');
+            //console.log('content does not exist');
             return false;
         } else {
             content = data.content.trim();

@@ -7,7 +7,7 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const MOVE_SPEED = 1.0 / 3.0;
 const TIME_TO_EXPLODE = 3000;
-const PLAY_TIMEsec = 15;//2 * 60;
+const PLAY_TIMEsec = 2 * 60;
 
 const COLOR_LIST = ['deeppink', 'mediumblue', 'lime', 'orange'];
 const STATE = {
@@ -235,6 +235,9 @@ function setSocket(io, socket, playerRoomList, roomStateList) {
             obtainedCells: {},
             tmpMatrix: []
         };
+        
+        //console.log('onAskForMatchStart');
+        //console.log(matchStateList[room_id].players);
         
         switch (roomStateList[room_id].battle_mode) {
             case 'fourMen':
@@ -674,8 +677,8 @@ function killPersonIn(ni, nj, io, socket, room_id, roomStateList) {
                 index: index
             });
             
-            if (roomStateList[room_id].participatingIdList[index] === socket.id) {
-                io.sockets.connected[socket.id].emit('youDied', {});
+            if (roomStateList[room_id].participatingIdList[index]) {
+                io.sockets.connected[roomStateList[room_id].participatingIdList[index]].emit('youDied', {});
             }
         }
     });
@@ -815,23 +818,12 @@ function emitParticipatingListChange(io, socket, roomStateList, room_id) {
 }
 
 function emptyParticipatingList(room_id, roomStateList) {
-    switch(roomStateList[room_id].battle_mode) {
-        case 'twoOnTwo':
-            roomStateList[room_id].teamAIdList = [];
-            roomStateList[room_id].teamANameList = [];
-            roomStateList[room_id].teamBIdList = [];
-            roomStateList[room_id].teamBNameList = [];
-            roomStateList[room_id].participatingIdList = [];
-            roomStateList[room_id].participatingNameList = [];
-            break;
-        case 'fourMen':
-        case 'oneOnOne':
-            roomStateList[room_id].participatingIdList = [];
-            roomStateList[room_id].participatingNameList = [];
-            break;
-        default:
-            return false;
-    }
+    roomStateList[room_id].teamAIdList = [];
+    roomStateList[room_id].teamANameList = [];
+    roomStateList[room_id].teamBIdList = [];
+    roomStateList[room_id].teamBNameList = [];
+    roomStateList[room_id].participatingIdList = [];
+    roomStateList[room_id].participatingNameList = [];
 }
 
 function setTopLeftPerson (players, color, name) {

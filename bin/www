@@ -181,11 +181,11 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', (data) => {
     if (!data || !data.room_id) {
-      console.log('room data is null');
+      //console.log('room data is null');
       return false;
     } else if (!roomMap[data.room_id]) {
       common.redirectTopPage(socket);
-      console.log('room does not exist in roomMap for room id :' + data.room_id);
+      //console.log('room does not exist in roomMap for room id :' + data.room_id);
       return false;
     }
     
@@ -206,7 +206,7 @@ io.on('connection', (socket) => {
   
   
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    //console.log('user disconnected');
     //console.log(playerRoomList);
     connectCounter--;
     

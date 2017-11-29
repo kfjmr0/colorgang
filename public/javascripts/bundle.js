@@ -14098,7 +14098,7 @@ const V_CELL_NUM = 11;
 const H_CELL_NUM = 13;
 const ANIMATION_DT = 50;
 const TIME_TO_EXPLODE = 3000;
-const PLAY_TIMEsec = 15;//2*60;
+const PLAY_TIMEsec = 2*60;
 const r_TIME_TO_EXPLOSION = 1.0 / TIME_TO_EXPLODE;
 const STATE = {
     first_color: 0,
@@ -14166,10 +14166,10 @@ function init(socket) {
 }
 
 function emptyVariables() {
-    var COLOR_LIST = [];
-    var players = [];
-    var cellStates = [];
-    var bombs = {};
+    COLOR_LIST = [];
+    players = [];
+    cellStates = [];
+    bombs = {};
 }
 
 function setEventHandler(socket) {
@@ -14275,6 +14275,7 @@ function setSocketEvent(socket) {
             COLOR_LIST[index] = color;
         });
         
+        //console.log(data.players);
         data.players.forEach((player) => {
             players.push({
                 name: player.name,
@@ -14332,8 +14333,8 @@ function setSocketEvent(socket) {
         $('#match-messagebox').empty();
         unbindMatchEvent();
         
-        console.log('match end');
-        console.log(data);
+        //console.log('match end');
+        //console.log(data);
         if (data.hasWonByKill) {
             $('#match-messagebox').text(data.result_message);
         } else {
@@ -14363,6 +14364,7 @@ function setSocketEvent(socket) {
         $('#participate-button').html(participate_join_html);
         setJoinEvent(socket);
         
+        $('#participants-list').empty();
         emptyVariables();
         
     });
@@ -14495,7 +14497,7 @@ function bindMatchSocketEvent(socket) {
     });
     
     socket.on('youDied', (data) => {
-        //console.log('you died!')
+        console.log('you died!')
         unbindMatchEvent();
     });
 }
@@ -14524,6 +14526,8 @@ function setFieldSizeAndGetCanvas() {
 }
 
 function renderPlayerNamesAroundField() {
+    $('#top-namespace').empty();
+    $('#bottom-namespace').empty();
     players.forEach((player, index) => {
         switch (index) {
             case 0:
@@ -14752,7 +14756,6 @@ function renderCharacter(x_raw, y_raw, color, animation_count, direction) {
 }
 
 function animateRight(x, y, color, animation_count) {
-  //console.log('animateRight position:');
 
   drawHeadAndBody(x, y);
   drawVerticalPostureLimbs(x, y, animation_count);
@@ -14775,7 +14778,6 @@ function animateRight(x, y, color, animation_count) {
 }
 
 function animateLeft(x, y, color, animation_count) {
-  //console.log('left position :');
 
   drawHeadAndBody(x, y);
   drawVerticalPostureLimbs(x, y, animation_count);
@@ -14798,7 +14800,6 @@ function animateLeft(x, y, color, animation_count) {
 }
 
 function animateUp(x, y, color, animation_count) {
-  //console.log('up position :');
   drawHeadAndBody(x, y);
   drawHorizontalPostureLimbs(x, y, animation_count);
   drawHorizontalPostureScarf(x, y, color);
@@ -14806,7 +14807,6 @@ function animateUp(x, y, color, animation_count) {
 }
 
 function animateDown(x, y, color, animation_count) {
-  //console.log('down position :');
   drawHeadAndBody(x, y);
   drawHorizontalPostureLimbs(x, y, animation_count);
   drawHorizontalPostureScarf(x, y, color);
