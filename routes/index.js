@@ -6,7 +6,7 @@ router.get('/', (req, res, next) => {
     if (express().get('env') === 'development') {
         var url = 'https://node-study-kfjmr0.c9users.io:8080/';
     } else {
-        var url = 'https://node-study-kfjmr0.c9users.io:8080/';
+        var url = 'https://colorgang.herokuapp.com/';
     }
     res.render('index', {url: url});
 });

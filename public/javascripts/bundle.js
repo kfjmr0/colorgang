@@ -14134,8 +14134,8 @@ const mode_selector_html = '<form class="form-horizontal">'
                            +' 		<div class="col-sm-10">'
                            +' 			<select id="battle-mode-selector" class="form-control">'
                            +' 				<option value="fourMen">4 men battle royal</option>'
-                           +' 				<option value="twoOnTwo">2 on 2 tag-team match(unimplemented)</option>'
-                           +' 				<option value="oneOnOne">1 on 1 gachinko match(unimplemented)</option>'
+                           +' 				<option value="twoOnTwo">2 on 2 tag-team match</option>'
+                           +' 				<option value="oneOnOne">1 on 1 gachinko match</option>'
                            +' 			</select>'
                            +' 		</div>'
                            +' 	</div>'
@@ -14497,7 +14497,7 @@ function bindMatchSocketEvent(socket) {
     });
     
     socket.on('youDied', (data) => {
-        console.log('you died!')
+        //console.log('you died!')
         unbindMatchEvent();
     });
 }
